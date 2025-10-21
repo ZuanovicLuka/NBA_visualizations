@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
+import { apiCall } from "@/api";
 
 const signUpSchema = z.object({
   first_name: z
@@ -18,7 +19,10 @@ const signUpSchema = z.object({
     .min(4, "Username must have at least 4 characters!")
     .regex(/^[a-zA-Z][a-zA-Z0-9._]*$/, "Invalid username format!"),
   email: z.string().email("Invalid email format!"),
-  password: z.string().min(6, "Password must have at least 6 characters!"),
+  password: z
+    .string()
+    .min(6, "Password must have at least 6 characters!")
+    .max(72, "Password cannot be longer than 72 characters!"),
 });
 
 export default function RegisterPage() {
@@ -33,6 +37,7 @@ export default function RegisterPage() {
   });
 
   const [errors, setErrors] = useState<any>({});
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -52,6 +57,46 @@ export default function RegisterPage() {
     try {
       signUpSchema.parse(formData);
       setErrors({});
+
+      const registrationData = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+      };
+
+      const [data, status] = await apiCall("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(registrationData),
+      });
+
+      if (status >= 400) {
+        const backendErrors: any = {};
+
+        if (Array.isArray(data.detail)) {
+          data.detail.forEach((err: string) => {
+            if (err.includes("Username")) backendErrors.username = err;
+            if (err.includes("Email")) backendErrors.email = err;
+          });
+        } else if (typeof data.detail === "string") {
+          if (data.detail.includes("Username"))
+            backendErrors.username = data.detail;
+          if (data.detail.includes("Email")) backendErrors.email = data.detail;
+        }
+
+        setErrors(backendErrors);
+        return;
+      }
+
+      console.log("Registration success:", data);
+
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+      }
+
+      router.push("/home");
     } catch (error) {
       if (error instanceof z.ZodError) {
         const formattedErrors = error.errors.reduce((acc: any, curr) => {
@@ -60,7 +105,7 @@ export default function RegisterPage() {
         }, {});
         setErrors(formattedErrors);
       } else {
-        console.error("Došlo je do greške:", error);
+        console.error("Unexpected error:", error);
       }
     }
   };
@@ -70,10 +115,12 @@ export default function RegisterPage() {
       <div className="absolute top-4 left-4 w-[10rem] md:w-[15rem]">
         <img src="/images/logo.png" className="w-full" />
       </div>
+
       <div className="bg-white p-6 rounded-2xl shadow-gray-900 shadow-2xl w-11/12 sm:w-4/5 md:w-3/5 lg:w-1/2 mt-20">
         <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center text-textColor">
           Registration
         </h2>
+
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-2 gap-4 mb-4">
             {["first_name", "last_name", "username", "email", "password"].map(
@@ -95,19 +142,14 @@ export default function RegisterPage() {
                               ? "Email"
                               : "Password"
                     }
-                    title={
-                      field === "first_name"
-                        ? "The first name must have at least 2 characters and start with a capital letter!"
-                        : field === "last_name"
-                          ? "The last name must have at least 2 characters and start with a capital letter!"
-                          : field === "username"
-                            ? "The username must start with a letter and have at least 4 characters!"
-                            : field === "email"
-                              ? "Enter a valid email format (e.g. name@domain.com)"
-                              : "The password must have at least 6 characters!"
+                    className={`p-2 border rounded-lg w-full focus:outline-none focus:ring-2 ${
+                      errors[field]
+                        ? "ring-2 ring-red-500"
+                        : "focus:ring-blue-500"
+                    } text-sm md:text-base`}
+                    maxLength={
+                      field === "password" ? 72 : field === "email" ? 50 : 20
                     }
-                    className={`p-2 border rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors[field] ? "ring-2 ring-red-500" : "focus:ring-blue-500"} text-sm md:text-base`}
-                    maxLength={field === "email" ? 50 : 20}
                     required
                   />
 
@@ -120,13 +162,18 @@ export default function RegisterPage() {
               )
             )}
           </div>
+
           <button
             type="submit"
-            className="bg-blue-500 text-white w-full py-3 rounded-lg hover:bg-blue-600 transition-colors text-sm md:text-base"
+            disabled={loading}
+            className={`${
+              loading ? "bg-gray-400" : "bg-blue-500 hover:bg-blue-600"
+            } text-white w-full py-3 rounded-lg transition-colors text-sm md:text-base`}
           >
-            Register
+            {loading ? "Registering..." : "Register"}
           </button>
         </form>
+
         <div className="mt-4 flex justify-center items-center text-gray-600">
           <p className="mr-2">Already have an account?</p>
           <button

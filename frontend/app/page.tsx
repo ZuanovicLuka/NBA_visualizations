@@ -3,12 +3,14 @@
 import Logo from "./components/Logo";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { apiCall } from "@/api";
 
 export default function SignInPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [serverErrorMessage, setServerErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -17,10 +19,36 @@ export default function SignInPage() {
     }
   }, []);
 
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     setServerErrorMessage("");
+    setLoading(true);
+
+    const [data, status] = await apiCall("/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+
+    setLoading(false);
+
+    if (status >= 400) {
+      if (data?.detail) {
+        setServerErrorMessage(
+          Array.isArray(data.detail) ? data.detail.join(", ") : data.detail
+        );
+      } else {
+        setServerErrorMessage("Login failed. Please try again.");
+      }
+      return;
+    }
+
+    if (data?.token) {
+      localStorage.setItem("token", data.token);
+      router.push("/home");
+    } else {
+      setServerErrorMessage("No token received from server.");
+    }
   };
 
   return (
@@ -78,9 +106,12 @@ export default function SignInPage() {
 
               <button
                 type="submit"
-                className="bg-blue-500 text-white w-full py-3 rounded-lg hover:bg-blue-600 transition-colors"
+                disabled={loading}
+                className={`${
+                  loading ? "bg-gray-400" : "bg-blue-500 hover:bg-blue-600"
+                } text-white w-full py-3 rounded-lg transition-colors`}
               >
-                Sign in
+                {loading ? "Signing in..." : "Sign in"}
               </button>
             </form>
             <div className="mt-4 flex justify-center items-center text-gray-600">
