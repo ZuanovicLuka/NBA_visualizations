@@ -53,7 +53,7 @@ export default function SignInPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center">
-      <div className="w-full md:flex min-h-screen bg-[#84b0ee]">
+      <div className="w-full md:flex min-h-screen bg-gradient-to-br from-indigo-900 via-blue-500 to-blue-300">
         <div className="flex flex-1 items-center justify-center mt-4 md:mt-0">
           <Logo />
         </div>

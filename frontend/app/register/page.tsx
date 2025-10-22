@@ -111,12 +111,12 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center relative bg-[#84b0ee]">
-      <div className="absolute top-4 left-4 w-[10rem] md:w-[15rem]">
+    <div className="min-h-screen flex flex-col items-center justify-center relative bg-gradient-to-br from-indigo-900 via-blue-500 to-blue-300">
+      <div className="absolute bottom-4 right-4 w-[10rem] md:w-[15rem]">
         <img src="/images/logo.png" className="w-full" />
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow-gray-900 shadow-2xl w-11/12 sm:w-4/5 md:w-3/5 lg:w-1/2 mt-20">
+      <div className="bg-white p-6 rounded-2xl shadow-gray-900 shadow-2xl w-11/12 sm:w-4/5 md:w-3/5 lg:w-1/2">
         <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center text-textColor">
           Registration
         </h2>
