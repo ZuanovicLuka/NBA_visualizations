@@ -1,6 +1,6 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import type { Metadata } from "next";
-import { Providers } from "./client";
+import { Providers } from "./client"; // for now removed because of Hydration error
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,9 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <Providers>
-        <body>{children}</body>
-      </Providers>
+      <body>{children}</body>
     </html>
   );
 }

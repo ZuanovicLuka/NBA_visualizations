@@ -15,7 +15,7 @@ export default function SignInPage() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      router.push("/home");
+      router.push("/setup");
     }
   }, []);
 
@@ -45,7 +45,7 @@ export default function SignInPage() {
 
     if (data?.token) {
       localStorage.setItem("token", data.token);
-      router.push("/home");
+      router.push("/setup");
     } else {
       setServerErrorMessage("No token received from server.");
     }
