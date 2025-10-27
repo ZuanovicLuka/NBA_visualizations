@@ -8,6 +8,8 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from fastapi import Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 load_dotenv()
 
@@ -34,6 +36,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+security = HTTPBearer()
 app = FastAPI()
 
 origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
@@ -51,6 +54,9 @@ class UserCreate(BaseModel):
     username: str
     email: EmailStr
     password: str
+    favourite_team_name: str | None = None
+    favourite_player_name: str | None = None
+
 
 class UserLogin(BaseModel):
     username: str
@@ -157,3 +163,153 @@ def login(user: UserLogin):
         print("LOGIN ERROR:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+@app.put("/setup-team-and-player")
+def update_profile(
+    data: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        favourite_team = data.get("favourite_team_name")
+        favourite_player = data.get("favourite_player_name")
+        favourite_player_id = data.get("favourite_player_id")
+
+        if not favourite_team and not favourite_player and not favourite_player_id:
+            raise HTTPException(status_code=400, detail="No fields provided to update")
+
+        updates = {}
+        if favourite_team:
+            updates["favourite_team_name"] = favourite_team
+        if favourite_player:
+            updates["favourite_player_name"] = favourite_player
+        if favourite_player_id:
+            updates["favourite_player_id"] = favourite_player_id
+
+        result = (
+            supabase.table("users")
+            .update(updates)
+            .eq("username", username)
+            .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        print("Profile updated successfully:", result.data[0])
+        return {"message": "Profile updated successfully", "user": result.data[0]}
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        print("UPDATE PROFILE ERROR:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+    
+@app.get("/teams")
+def get_teams(search: str = ""):
+    """Search teams by full_name"""
+    try:
+        print(f"Searching teams for query: '{search}'")
+        query = supabase.table("teams").select("id, full_name, logo_url")
+        if search:
+            query = query.ilike("full_name", f"%{search}%")
+        response = query.execute()
+
+        return response.data or []
+    except Exception as e:
+        print("TEAMS SEARCH ERROR:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/players")
+def get_players(search: str = ""):
+    """Search players by first or last name and attach image URLs"""
+    try:
+        print(f"Searching players for query: '{search}'")
+        query = supabase.table("active_players").select(
+            "player_id, first_name, last_name, jersey"
+        )
+        if search:
+            query = query.or_(
+                f"first_name.ilike.%{search}%,last_name.ilike.%{search}%"
+            )
+        response = query.execute()
+        players = response.data or []
+
+        for p in players:
+            image_path = f"{p['player_id']}.png"
+            try:
+                image_url = supabase.storage.from_("Player images").get_public_url(image_path)
+                p["image_url"] = image_url
+            except Exception:
+                p["image_url"] = "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png"
+
+            p["name"] = f"{p['first_name']} {p['last_name']}"
+        return players
+
+    except Exception as e:
+        print("PLAYER SEARCH ERROR:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/check-if-setup-completed")
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        response = (
+            supabase.table("users")
+            .select("*")
+            .eq("username", username)
+            .execute()
+        )
+
+        if not response.data or len(response.data) == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        return response.data[0]
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+@app.get("/users/info")
+def get_user_info(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+
+        response = (
+            supabase.table("users")
+            .select("*")
+            .eq("username", username)
+            .single()
+            .execute()
+        )
+
+        return response.data
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+

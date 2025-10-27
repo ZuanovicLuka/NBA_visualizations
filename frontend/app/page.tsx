@@ -13,10 +13,23 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      router.push("/setup");
-    }
+    const checkUser = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const [userData, userStatus] = await apiCall("/check-if-setup-completed");
+      if (
+        userStatus === 200 &&
+        userData.favourite_team_name &&
+        userData.favourite_player_name
+      ) {
+        router.push("/home");
+      } else {
+        router.push("/setup");
+      }
+    };
+
+    checkUser();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -45,7 +58,18 @@ export default function SignInPage() {
 
     if (data?.token) {
       localStorage.setItem("token", data.token);
-      router.push("/setup");
+      const [userData, userStatus] = await apiCall("/check-if-setup-completed");
+      if (
+        userStatus === 200 &&
+        userData.favourite_team_name &&
+        userData.favourite_player_name
+      ) {
+        console.log("User already has setup — redirecting to /home");
+        router.push("/home");
+      } else {
+        console.log("User needs to complete setup");
+        router.push("/setup");
+      }
     } else {
       setServerErrorMessage("No token received from server.");
     }

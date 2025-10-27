@@ -21,6 +21,7 @@
     "chartjs-adapter-date-fns": "^3.0.0",
     "date-fns": "^4.1.0",
     "framer-motion": "^11.15.0",
+    "jwt-decode": "^4.0.0",
     "lucide-react": "^0.546.0",
     "menu": "^0.2.5",
     "next": "^15.1.1-canary.16",

@@ -27,14 +27,12 @@ export default function ProfilePage() {
         transition={{ duration: 0.6 }}
         className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl shadow-xl p-8 w-full max-w-3xl text-center"
       >
-        {/* Profile Header */}
         <div className="flex flex-col items-center mb-8">
           <FaUserCircle className="text-yellow-400 w-24 h-24 mb-4" />
           <h1 className="text-2xl font-bold">{user.name}</h1>
           <p className="text-white/70">@{user.username}</p>
         </div>
 
-        {/* Favorite Team / Player */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-white/10 border border-white/20 rounded-xl p-6 backdrop-blur-md shadow-md hover:bg-white/20 transition">
             <h2 className="text-yellow-400 font-semibold text-lg mb-3">
@@ -57,7 +55,6 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Buttons */}
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <button className="bg-yellow-500 hover:bg-yellow-400 text-white font-semibold px-5 py-2 rounded-lg transition">
             Edit Profile
