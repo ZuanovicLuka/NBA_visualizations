@@ -42,7 +42,7 @@ export default function RegisterPage() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      router.push("/home");
+      router.push("/setup");
     }
   }, []);
 
@@ -96,7 +96,7 @@ export default function RegisterPage() {
         localStorage.setItem("token", data.token);
       }
 
-      router.push("/home");
+      router.push("/setup");
     } catch (error) {
       if (error instanceof z.ZodError) {
         const formattedErrors = error.errors.reduce((acc: any, curr) => {

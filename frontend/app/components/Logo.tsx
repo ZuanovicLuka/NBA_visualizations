@@ -4,7 +4,7 @@ function Logo() {
       <img
         src="/images/logo.png"
         alt="Logo"
-        className="w-6/12 sm:w-7/12 md:w-10/12"
+        className="w-6/12 sm:w-7/12 md:w-9/12"
       />
     </>
   );
