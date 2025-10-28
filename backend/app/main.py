@@ -261,6 +261,56 @@ def get_players(search: str = ""):
         print("PLAYER SEARCH ERROR:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/player-image")
+def get_player_image(name: str):
+    """Get a player's image URL by full name."""
+    try:
+        if not name:
+            raise HTTPException(status_code=400, detail="Player name is required")
+
+        print(f"Searching image for player: '{name}'")
+
+        parts = name.strip().split(" ")
+        query = supabase.table("active_players").select("player_id, first_name, last_name")
+
+        if len(parts) == 2:
+            first, last = parts
+            query = query.or_(
+                f"first_name.ilike.%{first}%,last_name.ilike.%{last}%"
+            )
+        else:
+            query = query.or_(
+                f"first_name.ilike.%{name}%,last_name.ilike.%{name}%"
+            )
+
+        response = query.execute()
+        players = response.data or []
+
+        if not players:
+            print("No matching player found for:", name)
+            return {"image_url": "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png"}
+
+        player = next(
+            (p for p in players if f"{p['first_name']} {p['last_name']}".strip().lower() == name.lower()),
+            players[0]
+        )
+
+        player_id = player["player_id"]
+        image_path = f"{player_id}.png"
+
+        try:
+            image_url = supabase.storage.from_("Player images").get_public_url(image_path)
+            print("Found image for player:", player_id, image_url)
+        except Exception:
+            image_url = "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png"
+
+        return {"image_url": image_url, "player_id": player_id}
+
+    except Exception as e:
+        print("GET PLAYER IMAGE ERROR:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 @app.get("/check-if-setup-completed")
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
