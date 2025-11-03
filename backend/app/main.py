@@ -363,3 +363,86 @@ def get_user_info(credentials: HTTPAuthorizationCredentials = Depends(security))
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+@app.put("/user/update")
+def update_user_profile(
+    data: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        current_user = (
+            supabase.table("users").select("*").eq("username", username).single().execute()
+        ).data
+
+        if not current_user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        new_username = data.get("username")
+        new_email = data.get("email")
+
+        if not new_username and not new_email:
+            raise HTTPException(status_code=400, detail="No fields provided to update")
+
+        updates = {}
+
+        if new_username and new_username != current_user["username"]:
+            existing_username = (
+                supabase.table("users")
+                .select("id")
+                .eq("username", new_username)
+                .execute()
+            )
+            if existing_username.data:
+                raise HTTPException(status_code=400, detail="Username already exists")
+            updates["username"] = new_username
+
+        if new_email and new_email != current_user["email"]:
+            existing_email = (
+                supabase.table("users").select("id").eq("email", new_email).execute()
+            )
+            if existing_email.data:
+                raise HTTPException(status_code=400, detail="Email already exists")
+            updates["email"] = new_email
+
+        if not updates:
+            raise HTTPException(status_code=400, detail="No valid changes detected")
+
+        result = (
+            supabase.table("users")
+            .update(updates)
+            .eq("username", username)
+            .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Failed to update user")
+
+        updated_user = result.data[0]
+        print("User profile updated successfully:", updated_user)
+
+        new_token = None
+        if "username" in updates:
+            new_token = create_access_token({"sub": updates["username"]})
+
+        response = {"message": "Profile updated successfully", "user": updated_user}
+        if new_token:
+            response["token"] = new_token
+
+        return response
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print("UPDATE USER PROFILE ERROR:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
