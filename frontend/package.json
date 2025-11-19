@@ -19,6 +19,7 @@
     "add": "^2.0.6",
     "bootstrap": "^5.3.3",
     "chartjs-adapter-date-fns": "^3.0.0",
+    "d3": "^7.9.0",
     "date-fns": "^4.1.0",
     "framer-motion": "^11.15.0",
     "jwt-decode": "^4.0.0",
