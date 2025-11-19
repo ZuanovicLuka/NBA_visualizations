@@ -231,6 +231,7 @@ def get_teams(search: str = ""):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/players")
 def get_players(search: str = ""):
     """Search players by first or last name and attach image URLs"""
@@ -261,7 +262,8 @@ def get_players(search: str = ""):
         print("PLAYER SEARCH ERROR:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+
 @app.get("/player-image")
 def get_player_image(name: str):
     """Get a player's image URL by full name."""
@@ -446,3 +448,49 @@ def update_user_profile(
         print("UPDATE USER PROFILE ERROR:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+
+@app.get("/teams_comparison")
+def get_teams_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    # assists, turnovers, team score (ovo su poeni), field goals percentage, three pointers percentage, 
+    # free throws percentage, rebounds_total, q1_points, q2_points, q3_points, q4_points
+    try:
+        first_team_id = 1610612742
+        second_team_id = 1610612762
+
+        # Dohvati podatke za prvi tim
+        first_team_stats = supabase.table("teams_stats") \
+            .select("*") \
+            .eq("team_id", first_team_id) \
+            .execute()
+
+        # Dohvati podatke za drugi tim
+        second_team_stats = supabase.table("teams_stats") \
+            .select("*") \
+            .eq("team_id", second_team_id) \
+            .execute()
+
+        # Proveri da li je došlo do greške
+        if first_team_stats.status_code != 200 or second_team_stats.status_code != 200:
+            raise HTTPException(status_code=500, detail="Error fetching data from Supabase")
+
+        return {
+            "first_team": first_team_stats.data,
+            "second_team": second_team_stats.data
+        }
+
+    except Exception as e:
+        # Loguj grešku za debug
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.get("/player_comparison")
+def get_players_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    pass
+
+
+@app.get("/get_clutch_factor")
+def get_clutch_factor_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    pass
