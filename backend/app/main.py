@@ -545,29 +545,12 @@ def get_players_stats(data: dict, credentials: HTTPAuthorizationCredentials = De
             .execute()
         ).data
 
-        # Fetch stats for second player
-        second_player_stats = (
-            supabase.table("player_statistics")
-            .select(f"player_id, player_team_name, game_date, {categories}") \
-            .eq("player_id", second_player_id) \
-            .gte("game_date", start_date) \
-            .lte("game_date", end_date) \
-            .order("game_date", desc=True) \
-            .execute()
-        ).data
 
         first_player_stats = calculate_player_summary(first_player_stats)
-        second_player_stats = calculate_player_summary(second_player_stats)
         
         response = {
-            "first_player": {
-                "id": first_player_id,
-                "stats": first_player_stats
-            },
-            "second_player": {
-                "id": second_player_id,
-                "stats": second_player_stats
-            }
+            "id": first_player_id,
+            "stats": first_player_stats
         }
         return response
     
