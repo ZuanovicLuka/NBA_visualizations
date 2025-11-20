@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import { apiCall } from "@/api";
+import { LineChart } from "lucide-react";
 
 export default function TeamStatsPage() {
   const [openDropdown, setOpenDropdown] = useState(false);
@@ -158,8 +159,9 @@ export default function TeamStatsPage() {
   return (
     <div className="flex justify-center pt-10 pb-20">
       <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-3xl shadow-2xl p-10 w-full max-w-7xl">
-        <h1 className="text-3xl font-bold text-white mb-10 text-center">
-          📈 Team Stats Trend
+        <h1 className="text-3xl font-bold text-white mb-10 text-center flex items-center justify-center gap-3">
+          <LineChart className="w-10 h-10 text-white" />
+          Team Stats Trend
         </h1>
 
         <div className="flex flex-row gap-10">
