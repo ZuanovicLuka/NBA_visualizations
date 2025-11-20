@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import { apiCall } from "@/api";
 import { MirrorChart } from "@/app/components/MirrorChart";
 import { BarChart3 } from "lucide-react";
+import Flatpickr from "react-flatpickr";
+import "flatpickr/dist/themes/airbnb.css";
+import { Calendar } from "lucide-react";
 
 export default function PlayerStatsPage() {
   const [player1, setPlayer1] = useState("");
@@ -23,8 +26,16 @@ export default function PlayerStatsPage() {
   const ref1 = useRef(null);
   const ref2 = useRef(null);
 
+  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([
+    null,
+    null,
+  ]);
+
+  const datepickerRef = useRef<any>(null);
+
   // Mock stats — kasnije API
   const metrics = [
+    { key: "games", label: "Number of games", p1: 17, p2: 14 },
     { key: "points", label: "Points", p1: 28, p2: 23 },
     { key: "assists", label: "Assists", p1: 6, p2: 4 },
     { key: "rebounds", label: "Rebounds", p1: 9, p2: 11 },
@@ -102,7 +113,7 @@ export default function PlayerStatsPage() {
         <div className="grid grid-cols-2 gap-6 mb-10">
           <div ref={ref1} className="relative">
             <input
-              className="w-full p-3 rounded-xl bg-white/20 border border-white/30 text-white placeholder-white/60"
+              className="w-full p-3 rounded-3xl bg-white/20 border border-white/30 text-white placeholder-white/60"
               placeholder="Search Player 1..."
               value={search1}
               onFocus={() => setDropdown1(true)}
@@ -142,7 +153,7 @@ export default function PlayerStatsPage() {
 
           <div ref={ref2} className="relative">
             <input
-              className="w-full p-3 rounded-xl bg-white/20 border border-white/30 text-white placeholder-white/60"
+              className="w-full p-3 rounded-3xl bg-white/20 border border-white/30 text-white placeholder-white/60"
               placeholder="Search Player 2..."
               value={search2}
               onFocus={() => setDropdown2(true)}
@@ -178,6 +189,38 @@ export default function PlayerStatsPage() {
                 )}
               </div>
             )}
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center mb-10">
+          <div className="relative w-80">
+            <Flatpickr
+              placeholder="Select date range..."
+              ref={datepickerRef}
+              value={dateRange}
+              options={{
+                mode: "range",
+                dateFormat: "d.m.Y",
+                locale: {
+                  rangeSeparator: " - ",
+                } as any,
+              }}
+              onChange={(dates) => {
+                setDateRange([dates[0] || null, dates[1] || null]);
+              }}
+              className="
+        bg-white/20 border border-white/30 text-white
+        rounded-3xl px-6 py-3 text-center
+        placeholder-white/60 w-full
+      "
+            />
+
+            <Calendar
+              className="
+        absolute left-8 top-1/2 -translate-y-1/2
+        text-white/70 w-7 h-7 pointer-events-none
+      "
+            />
           </div>
         </div>
 

@@ -41,3 +41,28 @@
 .animate-dropdownFade {
   animation: dropdownFade 0.2s ease-out;
 }
+
+.flatpickr-calendar {
+  transform: scale(1.3) translateY(10px) !important;
+  transform-origin: top center !important;
+}
+
+.flatpickr-calendar.arrowTop:before,
+.flatpickr-calendar.arrowTop:after {
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+}
+
+.flatpickr-prev-month svg,
+.flatpickr-next-month svg {
+  stroke: #2755a8 !important;
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange {
+  background: #ffd900 !important;
+  border-color: #ffd900 !important;
+  color: #000 !important;
+  border-radius: 10px !important;
+}
