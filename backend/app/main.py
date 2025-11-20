@@ -663,3 +663,56 @@ def get_favourite_team_data(data: dict, credentials: HTTPAuthorizationCredential
     except Exception as e:
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def get_player_trivia_data(data: dict, credential:  HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        player_id = 2544
+
+        trivia_categories = "first_name, last_name, country, birthdate, height, position, " \
+                            "jersey, team_id, draft_team_id, draft_number, draft_year"
+
+        player_trivia_data = (supabase.table("active_players") \
+                            .select(trivia_categories) \
+                            .eq("player_id", player_id) \
+                            .execute()
+                        ).data
+
+        player = player_trivia_data[0]
+        team_id = player.get("team_id")
+        draft_team_id = player.get("draft_team_id")
+
+        team_data = (
+                supabase.table("teams") \
+                .select("logo_url") \
+                .eq("id", team_id) \
+                .maybe_single() \
+                .execute()
+            )
+        team_logo_url = team_data.data["logo_url"] if team_data.data else None
+
+        if draft_team_id != -1:
+            draft_team_logo_url = None
+        else:
+            draft_team_data = (
+                supabase.table("teams") \
+                .select("logo_url") \
+                .eq("id", draft_team_id) \
+                .maybe_single() \
+                .execute()
+            )
+        
+        draft_team_logo_url = draft_team_data.data["logo_url"] if draft_team_data.data else None
+
+        response = {
+            "player_id": player_id,
+            "trivia": player_trivia_data,
+            "team_logo_url": team_logo_url,
+            "draft_team_logo_url": draft_team_logo_url
+        }
+
+        return response
+    
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
