@@ -11,7 +11,7 @@ from supabase import create_client, Client
 from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from backend.app.statistics import calculate_player_summary
+from app.statistics import calculate_player_summary, calculate_clutch_summary
 
 load_dotenv()
 
@@ -556,7 +556,6 @@ def get_players_stats(data: dict, credentials: HTTPAuthorizationCredentials = De
             .execute()
         ).data
 
-        # Optional: print results
         first_player_stats = calculate_player_summary(first_player_stats)
         second_player_stats = calculate_player_summary(second_player_stats)
         
@@ -570,6 +569,8 @@ def get_players_stats(data: dict, credentials: HTTPAuthorizationCredentials = De
                 "stats": second_player_stats
             }
         }
+        return response
+    
     except Exception as e:
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
@@ -578,4 +579,55 @@ def get_players_stats(data: dict, credentials: HTTPAuthorizationCredentials = De
 
 @app.get("/get_clutch_factor")
 def get_clutch_factor_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
-    pass
+    try:
+        player_id = 2544
+        categories = "player_id, points, field_goals_attempted, field_goals_made, game_id, win, home"
+        start_date = "2024-01-01"
+        end_date = "2024-12-31"
+
+        player_statistics = (supabase.table("player_statistics") \
+            .select(categories) \
+            .eq("player_id", player_id) \
+            .gte("game_date", start_date) \
+            .lte("game_date", end_date) \
+            .execute()
+        ).data
+        
+        #print(player_statistics)
+        game_home_pairs = [(row['game_id'], row['home']) for row in player_statistics]
+        print(game_home_pairs)
+
+        # extract just game_ids for the .in_() filter
+        game_ids = [p[0] for p in game_home_pairs]  # index 0 is game_id
+
+        games = (supabase.table("team_statistics")
+            .select("game_id, home, team_score, opponent_score")
+            .in_("game_id", game_ids)
+            .execute()
+        ).data
+
+        clutch_game_ids = [
+            row["game_id"]
+            for row in games
+            if any(row["game_id"] == p[0] and row["home"] == p[1] for p in game_home_pairs)
+            and abs(row["team_score"] - row["opponent_score"]) <= 5
+        ]
+
+        clutch_player_stats = [
+            row for row in player_statistics
+                if row["game_id"] in clutch_game_ids
+        ]
+
+        clutch_player_stats = calculate_clutch_summary(clutch_player_stats)
+
+        response = {
+            "player": {
+                "player_id": player_id,
+                "clutch_stats": clutch_player_stats
+            }
+        }
+        return response
+
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))

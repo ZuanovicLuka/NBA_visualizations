@@ -36,3 +36,25 @@ def calculate_player_summary(player_stats):
         "three_points_percentage": round(threep_percent, 1),
         "free_throw_percentage": round(ft_percent, 1),
     }
+
+
+def calculate_clutch_summary(clutch_player_stats):
+    total_fg_made = sum(row["field_goals_made"] for row in clutch_player_stats)
+    total_fg_attempted = sum(row["field_goals_attempted"] for row in clutch_player_stats)
+    total_points = sum(row["points"] for row in clutch_player_stats)
+    total_wins = sum(row["win"] for row in clutch_player_stats)
+    num_games = len(clutch_player_stats)
+
+    fg_percentage = round((total_fg_made / total_fg_attempted) * 100, 2) if total_fg_attempted > 0 else 0
+    ppg = round(total_points / num_games, 2) if num_games > 0 else 0
+    win_percentage = round((total_wins / num_games) * 100, 2) if num_games > 0 else 0
+
+    print(f"FG%: {fg_percentage}%")
+    print(f"PPG: {ppg}")
+    print(f"Win%: {win_percentage}%")
+
+    return {
+        "average_points": round(total_points /num_games, 1),
+        "field_goal_percentage": round(fg_percentage, 1),
+        "win_percentage": round(win_percentage, 1)
+    }
