@@ -11,6 +11,8 @@ from supabase import create_client, Client
 from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
+from backend.app.statistics import calculate_player_summary
+
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -450,7 +452,7 @@ def update_user_profile(
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
-@app.get("/teams_comparison")
+@app.get("/teams_statistics")
 def get_teams_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
     # assists, turnovers, team score (ovo su poeni), field goals percentage, three pointers percentage, 
     # free throws percentage, rebounds_total, q1_points, q2_points, q3_points, q4_points
@@ -521,9 +523,53 @@ def get_teams_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depe
 
 
 
-@app.get("/player_comparison")
+@app.get("/player_statistics")
 def get_players_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
-    pass
+    try: 
+        first_player_id = 2544
+        second_player_id = 202681
+        start_date = "2024-01-01"
+        end_date = "2024-12-31"
+
+        categories = "points, assists, rebounds_total, field_goals_attempted, field_goals_made, three_pointers_attempted," \
+                    "three_pointers_made, free_throws_attempted, free_throws_made"
+        
+        # fetch stats for first player
+        first_player_stats = (
+            supabase.table("player_statistics")
+            .select(f"player_id, player_team_name, game_date, {categories}") \
+            .eq("player_id", first_player_id) \
+            .gte("game_date", start_date) \
+            .lte("game_date", end_date) \
+            .order("game_date", desc=True) \
+            .execute()
+        ).data
+
+        # Fetch stats for second player
+        second_player_stats = (
+            supabase.table("player_statistics")
+            .select(f"player_id, player_team_name, game_date, {categories}") \
+            .eq("player_id", second_player_id) \
+            .gte("game_date", start_date) \
+            .lte("game_date", end_date) \
+            .order("game_date", desc=True) \
+            .execute()
+        ).data
+
+        # Optional: print results
+        first_player_stats = calculate_player_summary(first_player_stats)
+        second_player_stats = calculate_player_summary(second_player_stats)
+        
+        response = {
+            "first_player": {
+                "id": first_player_id,
+                "stats": first_player_stats
+            },
+            "second_player": {
+                "id": second_player_id,
+                "stats": second_player_stats
+            }
+        }
 
 
 @app.get("/get_clutch_factor")
