@@ -458,29 +458,64 @@ def get_teams_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depe
         first_team_id = 1610612742
         second_team_id = 1610612762
 
-        # Dohvati podatke za prvi tim
-        first_team_stats = supabase.table("teams_stats") \
-            .select("*") \
-            .eq("team_id", first_team_id) \
+        last_n_games = 20
+        category = "team_score"
+        # fetch stats for first team
+        first_team_stats_response = supabase.table("team_statistics") \
+            .select(f"game_date, teamId, {category}", count="exact") \
+            .eq("teamId", first_team_id) \
+            .eq("opponent_team_id", second_team_id) \
+            .order("game_date", desc=True) \
+            .limit(last_n_games)  \
+            .execute()
+        
+        first_team_name = supabase.table("teams") \
+            .select("full_name") \
+            .eq("id", first_team_id) \
             .execute()
 
-        # Dohvati podatke za drugi tim
-        second_team_stats = supabase.table("teams_stats") \
-            .select("*") \
-            .eq("team_id", second_team_id) \
+
+        # stats for second team
+        second_team_stats_response = supabase.table("team_statistics") \
+            .select(f"game_date, teamId, {category}", count="exact") \
+            .eq("teamId", second_team_id) \
+            .eq("opponent_team_id", first_team_id) \
+            .order("game_date", desc=True) \
+            .limit(last_n_games)  \
             .execute()
 
-        # Proveri da li je došlo do greške
-        if first_team_stats.status_code != 200 or second_team_stats.status_code != 200:
-            raise HTTPException(status_code=500, detail="Error fetching data from Supabase")
+        second_team_name = supabase.table("teams") \
+            .select("full_name") \
+            .eq("id", second_team_id) \
+            .execute()
 
-        return {
-            "first_team": first_team_stats.data,
-            "second_team": second_team_stats.data
+        first_team_games = first_team_stats_response.data[::-1]  # reverse list so oldest first
+        for i, row in enumerate(first_team_games, start=1):
+            row["game_order"] = i
+            del row["game_date"]
+            del row["teamId"]  
+
+        second_team_games = second_team_stats_response.data[::-1]
+        for i, row in enumerate(second_team_games, start=1):
+            row["game_order"] = i
+            del row["game_date"]
+            del row["teamId"]  
+
+        response = {
+            "first_team": {
+                "id": first_team_id,
+                "name": first_team_name,
+                "stats": first_team_games
+            },
+            "second_team": {
+                "id": second_team_id,
+                "name": second_team_name,
+                "stats": second_team_games
+            }
         }
+        return response
 
     except Exception as e:
-        # Loguj grešku za debug
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
