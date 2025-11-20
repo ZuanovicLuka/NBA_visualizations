@@ -11,7 +11,7 @@ from supabase import create_client, Client
 from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from app.statistics import calculate_player_summary, calculate_clutch_summary
+from app.statistics import *
 
 load_dotenv()
 
@@ -50,6 +50,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 class UserCreate(BaseModel):
     first_name: str
     last_name: str
@@ -63,6 +64,7 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
+
 
 @app.get("/")
 def read_root():
@@ -316,6 +318,7 @@ def get_player_image(name: str):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
+
 @app.get("/check-if-setup-completed")
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
@@ -346,6 +349,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
+
 @app.get("/users/info")
 def get_user_info(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
@@ -366,6 +370,7 @@ def get_user_info(credentials: HTTPAuthorizationCredentials = Depends(security))
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
 
 @app.put("/user/update")
 def update_user_profile(
@@ -559,7 +564,6 @@ def get_players_stats(data: dict, credentials: HTTPAuthorizationCredentials = De
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
 @app.get("/get_clutch_factor")
 def get_clutch_factor_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
@@ -611,6 +615,51 @@ def get_clutch_factor_stats(data: dict, credentials: HTTPAuthorizationCredential
         }
         return response
 
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.get("/favourite_team_data")
+def get_favourite_team_data(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        team_id = 1610612759
+
+        trivia_categories = "id, points, full_name, city, year_founded, logo_url"
+
+        statistical_categories = "teamId, home, game_date, win, assists, blocks, steals, turnovers, team_score, " \
+                                 "opponent_score, field_goals_made, field_goals_attempted, three_pointers_made, " \
+                                 "three_pointers_attempted, free_throws_made, free_throws_attempted, " \
+                                 "rebounds_total, fouls_personal"
+        last_n_games = 10
+
+        team_trivia_data = (supabase.table("teams") \
+                            .select(trivia_categories) \
+                            .eq("id", team_id) \
+                            .execute()
+                        ).data
+
+        team_form_stats = (supabase.table("team_statistics") \
+                           .select(statistical_categories)
+                           .eq("teamId", team_id)
+                           .order("game_date", desc=True)
+                           .limit(last_n_games)
+                           .execute()
+                        ).data
+        
+        team_stats_data = calculate_team_stats(team_form_stats)
+        form_string = "".join(["W" if row["win"] == 1 else "L" for row in team_form_stats])
+        form_string = form_string[::-1]
+
+        response = {
+            "team_id": team_id,
+            "trivia": team_trivia_data,
+            "stats": team_stats_data,
+            "form": form_string
+        }
+
+        return response
+    
     except Exception as e:
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
