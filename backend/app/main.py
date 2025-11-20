@@ -570,6 +570,10 @@ def get_players_stats(data: dict, credentials: HTTPAuthorizationCredentials = De
                 "stats": second_player_stats
             }
         }
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @app.get("/get_clutch_factor")
