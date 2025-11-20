@@ -231,6 +231,7 @@ def get_teams(search: str = ""):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/players")
 def get_players(search: str = ""):
     """Search players by first or last name and attach image URLs"""
@@ -261,7 +262,8 @@ def get_players(search: str = ""):
         print("PLAYER SEARCH ERROR:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+
 @app.get("/player-image")
 def get_player_image(name: str):
     """Get a player's image URL by full name."""
@@ -446,3 +448,84 @@ def update_user_profile(
         print("UPDATE USER PROFILE ERROR:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+
+@app.get("/teams_comparison")
+def get_teams_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    # assists, turnovers, team score (ovo su poeni), field goals percentage, three pointers percentage, 
+    # free throws percentage, rebounds_total, q1_points, q2_points, q3_points, q4_points
+    try:
+        first_team_id = 1610612742
+        second_team_id = 1610612762
+
+        last_n_games = 20
+        category = "team_score"
+        # fetch stats for first team
+        first_team_stats_response = supabase.table("team_statistics") \
+            .select(f"game_date, teamId, {category}", count="exact") \
+            .eq("teamId", first_team_id) \
+            .eq("opponent_team_id", second_team_id) \
+            .order("game_date", desc=True) \
+            .limit(last_n_games)  \
+            .execute()
+        
+        first_team_name = supabase.table("teams") \
+            .select("full_name") \
+            .eq("id", first_team_id) \
+            .execute()
+
+
+        # stats for second team
+        second_team_stats_response = supabase.table("team_statistics") \
+            .select(f"game_date, teamId, {category}", count="exact") \
+            .eq("teamId", second_team_id) \
+            .eq("opponent_team_id", first_team_id) \
+            .order("game_date", desc=True) \
+            .limit(last_n_games)  \
+            .execute()
+
+        second_team_name = supabase.table("teams") \
+            .select("full_name") \
+            .eq("id", second_team_id) \
+            .execute()
+
+        first_team_games = first_team_stats_response.data[::-1]  # reverse list so oldest first
+        for i, row in enumerate(first_team_games, start=1):
+            row["game_order"] = i
+            del row["game_date"]
+            del row["teamId"]  
+
+        second_team_games = second_team_stats_response.data[::-1]
+        for i, row in enumerate(second_team_games, start=1):
+            row["game_order"] = i
+            del row["game_date"]
+            del row["teamId"]  
+
+        response = {
+            "first_team": {
+                "id": first_team_id,
+                "name": first_team_name,
+                "stats": first_team_games
+            },
+            "second_team": {
+                "id": second_team_id,
+                "name": second_team_name,
+                "stats": second_team_games
+            }
+        }
+        return response
+
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.get("/player_comparison")
+def get_players_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    pass
+
+
+@app.get("/get_clutch_factor")
+def get_clutch_factor_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    pass
