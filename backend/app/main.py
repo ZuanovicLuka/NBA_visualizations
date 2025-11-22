@@ -459,8 +459,8 @@ def update_user_profile(
 
 @app.get("/teams_statistics")
 def get_teams_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
-    # assists, turnovers, team score (ovo su poeni), field goals percentage, three pointers percentage, 
-    # free throws percentage, rebounds_total, q1_points, q2_points, q3_points, q4_points
+    # assists, turnovers, team_score (ovo su poeni), field_goals_percentage, three_pointers_percentage, 
+    # free_throws_percentage, rebounds_total, q1_points, q2_points, q3_points, q4_points
     try:
         first_team_id = 1610612742
         second_team_id = 1610612762
@@ -472,6 +472,7 @@ def get_teams_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depe
             .select(f"game_date, teamId, {category}", count="exact") \
             .eq("teamId", first_team_id) \
             .eq("opponent_team_id", second_team_id) \
+            .neq(category, -1) \
             .order("game_date", desc=True) \
             .limit(last_n_games)  \
             .execute()
@@ -487,6 +488,7 @@ def get_teams_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depe
             .select(f"game_date, teamId, {category}", count="exact") \
             .eq("teamId", second_team_id) \
             .eq("opponent_team_id", first_team_id) \
+            .neq(category, -1) \
             .order("game_date", desc=True) \
             .limit(last_n_games)  \
             .execute()
