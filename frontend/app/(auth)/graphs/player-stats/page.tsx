@@ -201,6 +201,7 @@ export default function PlayerStatsPage() {
               options={{
                 mode: "range",
                 dateFormat: "d.m.Y",
+                minDate: "01.01.2006",
                 locale: {
                   rangeSeparator: " - ",
                 } as any,
