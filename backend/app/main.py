@@ -1,6 +1,7 @@
 import os
 import traceback
 from fastapi import FastAPI, HTTPException
+from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 import bcrypt
@@ -10,6 +11,8 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+from app.statistics import *
 
 load_dotenv()
 
@@ -48,6 +51,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 class UserCreate(BaseModel):
     first_name: str
     last_name: str
@@ -61,6 +65,7 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
+
 
 @app.get("/")
 def read_root():
@@ -231,6 +236,7 @@ def get_teams(search: str = ""):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/players")
 def get_players(search: str = ""):
     """Search players by first or last name and attach image URLs"""
@@ -261,7 +267,8 @@ def get_players(search: str = ""):
         print("PLAYER SEARCH ERROR:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+
 @app.get("/player-image")
 def get_player_image(name: str):
     """Get a player's image URL by full name."""
@@ -312,6 +319,7 @@ def get_player_image(name: str):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
+
 @app.get("/check-if-setup-completed")
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
@@ -342,6 +350,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
+
 @app.get("/users/info")
 def get_user_info(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
@@ -362,6 +371,7 @@ def get_user_info(credentials: HTTPAuthorizationCredentials = Depends(security))
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
 
 @app.put("/user/update")
 def update_user_profile(
@@ -446,3 +456,268 @@ def update_user_profile(
         print("UPDATE USER PROFILE ERROR:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+@app.post("/teams_statistics")
+async def get_teams_stats(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    # assists, turnovers, team score (ovo su poeni), field goals percentage, three pointers percentage, 
+    # free throws percentage, rebounds_total, q1_points, q2_points, q3_points, q4_points
+    try:
+        data = await request.json()
+
+        first_team_id = data.get("teamAId")
+        second_team_id = data.get("teamBId")
+        last_n_games = data.get("numGames")
+        category = data.get("statistic")
+
+        # fetch stats for first team
+        first_team_stats_response = supabase.table("team_statistics") \
+            .select(f"game_date, teamId, {category}", count="exact") \
+            .eq("teamId", first_team_id) \
+            .eq("opponent_team_id", second_team_id) \
+            .order("game_date", desc=True) \
+            .limit(last_n_games)  \
+            .execute()
+        
+        first_team_name = supabase.table("teams") \
+            .select("full_name") \
+            .eq("id", first_team_id) \
+            .execute()
+
+
+        # stats for second team
+        second_team_stats_response = supabase.table("team_statistics") \
+            .select(f"game_date, teamId, {category}", count="exact") \
+            .eq("teamId", second_team_id) \
+            .eq("opponent_team_id", first_team_id) \
+            .order("game_date", desc=True) \
+            .limit(last_n_games)  \
+            .execute()
+
+        second_team_name = supabase.table("teams") \
+            .select("full_name") \
+            .eq("id", second_team_id) \
+            .execute()
+
+        first_team_games = first_team_stats_response.data[::-1]  # reverse list so oldest first
+        for i, row in enumerate(first_team_games, start=1):
+            row["game_order"] = i
+            del row["game_date"]
+            del row["teamId"]  
+
+        second_team_games = second_team_stats_response.data[::-1]
+        for i, row in enumerate(second_team_games, start=1):
+            row["game_order"] = i
+            del row["game_date"]
+            del row["teamId"]  
+
+        response = {
+            "first_team": {
+                "id": first_team_id,
+                "name": first_team_name,
+                "stats": first_team_games
+            },
+            "second_team": {
+                "id": second_team_id,
+                "name": second_team_name,
+                "stats": second_team_games
+            }
+        }
+        return response
+
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.get("/player_statistics")
+def get_players_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try: 
+        first_player_id = 2544
+        second_player_id = 202681
+        start_date = "2024-01-01"
+        end_date = "2024-12-31"
+
+        categories = "points, assists, rebounds_total, field_goals_attempted, field_goals_made, three_pointers_attempted," \
+                    "three_pointers_made, free_throws_attempted, free_throws_made"
+        
+        # fetch stats for first player
+        first_player_stats = (
+            supabase.table("player_statistics")
+            .select(f"player_id, player_team_name, game_date, {categories}") \
+            .eq("player_id", first_player_id) \
+            .gte("game_date", start_date) \
+            .lte("game_date", end_date) \
+            .order("game_date", desc=True) \
+            .execute()
+        ).data
+
+
+        first_player_stats = calculate_player_summary(first_player_stats)
+        
+        response = {
+            "id": first_player_id,
+            "stats": first_player_stats
+        }
+        return response
+    
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/get_clutch_factor")
+def get_clutch_factor_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        player_id = 2544
+        categories = "player_id, points, field_goals_attempted, field_goals_made, game_id, win, home"
+        start_date = "2024-01-01"
+        end_date = "2024-12-31"
+
+        player_statistics = (supabase.table("player_statistics") \
+            .select(categories) \
+            .eq("player_id", player_id) \
+            .gte("game_date", start_date) \
+            .lte("game_date", end_date) \
+            .execute()
+        ).data
+        
+        #print(player_statistics)
+        game_home_pairs = [(row['game_id'], row['home']) for row in player_statistics]
+        print(game_home_pairs)
+
+        # extract just game_ids for the .in_() filter
+        game_ids = [p[0] for p in game_home_pairs]  # index 0 is game_id
+
+        games = (supabase.table("team_statistics")
+            .select("game_id, home, team_score, opponent_score")
+            .in_("game_id", game_ids)
+            .execute()
+        ).data
+
+        clutch_game_ids = [
+            row["game_id"]
+            for row in games
+            if any(row["game_id"] == p[0] and row["home"] == p[1] for p in game_home_pairs)
+            and abs(row["team_score"] - row["opponent_score"]) <= 5
+        ]
+
+        clutch_player_stats = [
+            row for row in player_statistics
+                if row["game_id"] in clutch_game_ids
+        ]
+
+        clutch_player_stats = calculate_clutch_summary(clutch_player_stats)
+
+        response = {
+            "player": {
+                "player_id": player_id,
+                "clutch_stats": clutch_player_stats
+            }
+        }
+        return response
+
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.get("/favourite_team_data")
+def get_favourite_team_data(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        team_id = 1610612759
+
+        trivia_categories = "id, points, full_name, city, year_founded, logo_url"
+
+        statistical_categories = "teamId, home, game_date, win, assists, blocks, steals, turnovers, team_score, " \
+                                 "opponent_score, field_goals_made, field_goals_attempted, three_pointers_made, " \
+                                 "three_pointers_attempted, free_throws_made, free_throws_attempted, " \
+                                 "rebounds_total, fouls_personal"
+        last_n_games = 10
+
+        team_trivia_data = (supabase.table("teams") \
+                            .select(trivia_categories) \
+                            .eq("id", team_id) \
+                            .execute()
+                        ).data
+
+        team_form_stats = (supabase.table("team_statistics") \
+                           .select(statistical_categories)
+                           .eq("teamId", team_id)
+                           .order("game_date", desc=True)
+                           .limit(last_n_games)
+                           .execute()
+                        ).data
+        
+        team_stats_data = calculate_team_stats(team_form_stats)
+        form_string = "".join(["W" if row["win"] == 1 else "L" for row in team_form_stats])
+        form_string = form_string[::-1]
+
+        response = {
+            "team_id": team_id,
+            "trivia": team_trivia_data,
+            "stats": team_stats_data,
+            "form": form_string
+        }
+
+        return response
+    
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def get_player_trivia_data(data: dict, credential:  HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        player_id = 2544
+
+        trivia_categories = "first_name, last_name, country, birthdate, height, position, " \
+                            "jersey, team_id, draft_team_id, draft_number, draft_year"
+
+        player_trivia_data = (supabase.table("active_players") \
+                            .select(trivia_categories) \
+                            .eq("player_id", player_id) \
+                            .execute()
+                        ).data
+
+        player = player_trivia_data[0]
+        team_id = player.get("team_id")
+        draft_team_id = player.get("draft_team_id")
+
+        team_data = (
+                supabase.table("teams") \
+                .select("logo_url") \
+                .eq("id", team_id) \
+                .maybe_single() \
+                .execute()
+            )
+        team_logo_url = team_data.data["logo_url"] if team_data.data else None
+
+        if draft_team_id != -1:
+            draft_team_logo_url = None
+        else:
+            draft_team_data = (
+                supabase.table("teams") \
+                .select("logo_url") \
+                .eq("id", draft_team_id) \
+                .maybe_single() \
+                .execute()
+            )
+        
+        draft_team_logo_url = draft_team_data.data["logo_url"] if draft_team_data.data else None
+
+        response = {
+            "player_id": player_id,
+            "trivia": player_trivia_data,
+            "team_logo_url": team_logo_url,
+            "draft_team_logo_url": draft_team_logo_url
+        }
+
+        return response
+    
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
