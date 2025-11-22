@@ -8,31 +8,98 @@ export default function TeamStatsPage() {
   const [openDropdown, setOpenDropdown] = useState(false);
   const toggleDropdown = () => setOpenDropdown(!openDropdown);
   const closeDropdown = () => setOpenDropdown(false);
-  const svgRef = useRef(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
 
   const [teamA, setTeamA] = useState("Team A");
   const [teamB, setTeamB] = useState("Team B");
+  const [teamAId, setTeamAId] = useState<number | null>(null);
+  const [teamBId, setTeamBId] = useState<number | null>(null);
 
   const [teamASearch, setTeamASearch] = useState("");
   const [teamADropdown, setTeamADropdown] = useState(false);
-  const [teamAResults, setTeamAResults] = useState([]);
+  const [teamAResults, setTeamAResults] = useState<any[]>([]);
   const [teamALoading, setTeamALoading] = useState(false);
 
   const [teamBSearch, setTeamBSearch] = useState("");
   const [teamBDropdown, setTeamBDropdown] = useState(false);
-  const [teamBResults, setTeamBResults] = useState([]);
+  const [teamBResults, setTeamBResults] = useState<any[]>([]);
   const [teamBLoading, setTeamBLoading] = useState(false);
 
-  const teamARef = useRef(null);
-  const teamBRef = useRef(null);
+  const teamARef = useRef<HTMLDivElement | null>(null);
+  const teamBRef = useRef<HTMLDivElement | null>(null);
+
+  const [statistic, setStatistic] = useState("team_score");
+  const [openStatisticDropdown, setOpenStatisticDropdown] = useState(false);
+
+  const toggleStatisticDropdown = () =>
+    setOpenStatisticDropdown(!openStatisticDropdown);
+  const closeStatisticDropdown = () => setOpenStatisticDropdown(false);
+
+  const STAT_LABELS: Record<string, string> = {
+    assists: "Assists",
+    turnovers: "Turnovers",
+    team_score: "Points",
+    field_goals_percentage: "Field Goal %",
+    three_pointers_percentage: "3PT %",
+    free_throws_percentage: "Free Throw %",
+    rebounds_total: "Rebounds",
+  };
 
   const [numGames, setNumGames] = useState(5);
   const [gamePart, setGamePart] = useState("game");
   const [showSum, setShowSum] = useState(false);
 
-  // static mock data
-  const dataA = [10, 20, 35, 50];
-  const dataB = [15, 30, 45, 60];
+  const [teamAStats, setTeamAStats] = useState<any[]>([]);
+  const [teamBStats, setTeamBStats] = useState<any[]>([]);
+
+  const getTeamColor = (id: number | null, fallback: string) => {
+    const COLORS: Record<number, string> = {
+      1610612737: "#E03A3E", // Atlanta Hawks
+      1610612738: "#007A33", // Boston Celtics
+      1610612751: "#000000", // Brooklyn Nets
+      1610612766: "#1D1160", // Charlotte Hornets
+      1610612741: "#CE1141", // Chicago Bulls
+      1610612739: "#6F263D", // Cleveland Cavaliers
+      1610612742: "#007DC5", // Dallas Mavericks
+      1610612743: "#0E2240", // Denver Nuggets
+      1610612765: "#006BB6", // Detroit Pistons
+      1610612744: "#FDB927", // Golden State Warriors
+      1610612745: "#552583", // Houston Rockets (new brand is red but purple looks wrong—yellow alt)
+      1610612754: "#002D62", // Indiana Pacers
+      1610612746: "#007A33", // LA Clippers (note: officially red/blue—use red?)
+      1610612747: "#552583", // Los Angeles Lakers
+      1610612763: "#5D76A9", // Memphis Grizzlies
+      1610612748: "#98002E", // Miami Heat
+      1610612750: "#0C2340", // Minnesota Timberwolves
+      1610612749: "#00471B", // Milwaukee Bucks
+      1610612752: "#F58426", // New York Knicks
+      1610612753: "#0C2340", // Orlando Magic
+      1610612755: "#006BB6", // Philadelphia 76ers
+      1610612756: "#1D1160", // Phoenix Suns
+      1610612757: "#E03A3E", // Portland Trail Blazers
+      1610612758: "#5A2D81", // Sacramento Kings
+      1610612759: "#000000", // San Antonio Spurs
+      1610612760: "#007AC1", // Oklahoma City Thunder
+      1610612761: "#CE1141", // Toronto Raptors
+      1610612762: "#1D428A", // Utah Jazz
+      1610612764: "#002B5C", // Washington Wizards
+    };
+
+    if (id && COLORS[id]) return COLORS[id];
+    return fallback;
+  };
+
+  const getCurrentValueKey = () => {
+    if (statistic !== "team_score") return statistic;
+    const map: Record<string, string> = {
+      "1st": "q1_points",
+      "2nd": "q2_points",
+      "3rd": "q3_points",
+      "4th": "q4_points",
+      game: "team_score",
+    };
+    return map[gamePart];
+  };
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -98,63 +165,343 @@ export default function TeamStatsPage() {
   }, []);
 
   useEffect(() => {
+    if (!teamAId || !teamBId) return;
+
+    const fetchStats = async () => {
+      let finalStatistic = statistic;
+
+      if (statistic === "team_score") {
+        const map = {
+          "1st": "q1_points",
+          "2nd": "q2_points",
+          "3rd": "q3_points",
+          "4th": "q4_points",
+          game: "team_score",
+        };
+
+        finalStatistic = map[gamePart];
+      }
+
+      const payload = {
+        teamAId,
+        teamBId,
+        statistic: finalStatistic,
+        numGames,
+      };
+
+      console.log("Sending payload:", payload);
+
+      const [data, status] = await apiCall("/teams_statistics", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      if (status === 200 && data) {
+        console.log("Backend response:", data);
+        setTeamAStats(data.first_team?.stats ?? []);
+        setTeamBStats(data.second_team?.stats ?? []);
+
+        if (data.first_team?.name?.data?.[0]?.full_name) {
+          setTeamA(data.first_team.name.data[0].full_name);
+        }
+        if (data.second_team?.name?.data?.[0]?.full_name) {
+          setTeamB(data.second_team.name.data[0].full_name);
+        }
+      }
+    };
+
+    fetchStats();
+  }, [teamAId, teamBId, statistic, numGames, gamePart, showSum]);
+
+  useEffect(() => {
+    if (!svgRef.current) return;
+    if (teamAStats.length === 0 && teamBStats.length === 0) return;
+
+    const valueKey = getCurrentValueKey();
+
+    const prepareSeries = (arr: any[]) => {
+      const sorted = [...arr].sort(
+        (a, b) => (a.game_order ?? 0) - (b.game_order ?? 0)
+      );
+      const mapped = sorted.map((d: any, i: number) => {
+        let raw = Number(d[valueKey] ?? 0);
+
+        const isPercentage =
+          statistic === "field_goals_percentage" ||
+          statistic === "three_pointers_percentage" ||
+          statistic === "free_throws_percentage";
+
+        if (isPercentage) {
+          raw = raw * 100;
+        }
+
+        return {
+          x: d.game_order ?? i + 1,
+          y: raw,
+        };
+      });
+
+      if (!showSum) return mapped;
+
+      // cumulative sum when showSum is ON
+      let running = 0;
+      return mapped.map((d) => {
+        running += d.y;
+        return { x: d.x, y: running };
+      });
+    };
+
+    const seriesA = prepareSeries(teamAStats);
+    const seriesB = prepareSeries(teamBStats);
+
+    const allPoints = [...seriesA, ...seriesB];
+    if (allPoints.length === 0) return;
+
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const width = 700;
-    const height = 350;
-    const margin = { top: 20, right: 50, bottom: 40, left: 50 };
+    const width = svgRef.current.clientWidth;
+    const height = 650;
+    const margin = { top: 60, right: 80, bottom: 60, left: 80 };
+
+    const xExtent = d3.extent(allPoints, (d) => d.x) as [number, number];
+    const yMax = d3.max(allPoints, (d) => d.y) ?? 1;
 
     const x = d3
       .scaleLinear()
-      .domain([0, dataA.length - 1])
+      .domain([1, numGames])
       .range([margin.left, width - margin.right]);
 
     const y = d3
       .scaleLinear()
-      .domain([0, d3.max([...dataA, ...dataB])])
+      .domain([0, yMax])
+      .nice()
       .range([height - margin.bottom, margin.top]);
 
     const lineGen = d3
-      .line()
-      .x((d, i) => x(i))
-      .y((d) => y(d))
+      .line<{ x: number; y: number }>()
+      .x((d) => x(d.x))
+      .y((d) => y(d.y))
       .curve(d3.curveMonotoneX);
 
-    // Team A line
     svg
-      .append("path")
-      .datum(dataA)
-      .attr("fill", "none")
-      .attr("stroke", "#999")
-      .attr("stroke-width", 3)
-      .attr("opacity", 0.6)
-      .attr("d", lineGen);
+      .append("rect")
+      .attr("x", 0)
+      .attr("y", 0)
+      .attr("width", width)
+      .attr("height", height)
+      .attr("fill", "rgba(30, 41, 59, 0.25)")
+      .style("pointer-events", "none");
 
-    // Team B line
+    const xAxis = d3
+      .axisBottom(x)
+      .ticks(numGames)
+      .tickFormat((d: any) => d);
+    const yAxis = d3.axisLeft(y).ticks(6);
+
     svg
-      .append("path")
-      .datum(dataB)
-      .attr("fill", "none")
-      .attr("stroke", "#555")
-      .attr("stroke-width", 3)
-      .attr("d", lineGen);
+      .append("g")
+      .attr("transform", `translate(0, ${height - margin.bottom})`)
+      .call(xAxis)
+      .call((g) =>
+        g.selectAll("text").attr("fill", "#e5e7eb").attr("font-size", 14)
+      )
+      .call((g) =>
+        g.selectAll("line, path").attr("stroke", "rgba(255,255,255,0.3)")
+      );
 
-    // labels
+    svg
+      .append("g")
+      .attr("transform", `translate(${margin.left}, 0)`)
+      .call(yAxis)
+      .call((g) =>
+        g.selectAll("text").attr("fill", "#e5e7eb").attr("font-size", 14)
+      )
+      .call((g) =>
+        g.selectAll("line, path").attr("stroke", "rgba(255,255,255,0.3)")
+      );
+
     svg
       .append("text")
-      .attr("x", x(dataB.length - 1) + 10)
-      .attr("y", y(dataB[dataB.length - 1]))
-      .attr("fill", "#555")
+      .attr("x", (width + margin.left - margin.right) / 2)
+      .attr("y", height - 20)
+      .attr("text-anchor", "middle")
+      .attr("fill", "#e5e7eb")
+      .attr("font-size", 18)
+      .text("Game order (last games)");
+
+    svg
+      .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("x", -(height - margin.top - margin.bottom) / 2)
+      .attr("y", 35)
+      .attr("text-anchor", "middle")
+      .attr("fill", "#e5e7eb")
+      .attr("font-size", 18)
+      .text(
+        showSum
+          ? `Cumulative ${STAT_LABELS[statistic] || valueKey}`
+          : STAT_LABELS[statistic] || valueKey
+      );
+
+    const colorA = getTeamColor(teamAId, "#3b82f6");
+    const colorB = getTeamColor(teamBId, "#ef4444");
+
+    const LEGEND_WIDTH = 200;
+    const LEGEND_HEIGHT = 50;
+
+    const legendX = width - LEGEND_WIDTH;
+    const legendY = 0;
+
+    const legendGroup = svg
+      .append("g")
+      .attr("transform", `translate(${legendX}, ${legendY})`);
+
+    legendGroup
+      .append("rect")
+      .attr("x", 0)
+      .attr("y", 0)
+      .attr("rx", 12)
+      .attr("ry", 12)
+      .attr("width", LEGEND_WIDTH)
+      .attr("height", LEGEND_HEIGHT)
+      .attr("fill", "rgba(255,255,255,0.85)")
+      .attr("stroke", "rgba(255,255,255,0.4)")
+      .attr("stroke-width", 1.5);
+
+    legendGroup
+      .append("circle")
+      .attr("cx", 15)
+      .attr("cy", 15)
+      .attr("r", 6)
+      .attr("fill", colorA)
+      .attr("stroke", "white")
+      .attr("stroke-width", 1.5);
+
+    legendGroup
+      .append("text")
+      .attr("x", 30)
+      .attr("y", 20)
+      .attr("fill", colorA)
+      .attr("font-size", 14)
+      .attr("font-weight", 600)
+      .text(teamA);
+
+    legendGroup
+      .append("circle")
+      .attr("cx", 15)
+      .attr("cy", 35)
+      .attr("r", 6)
+      .attr("fill", colorB)
+      .attr("stroke", "white")
+      .attr("stroke-width", 1.5);
+
+    legendGroup
+      .append("text")
+      .attr("x", 30)
+      .attr("y", 40)
+      .attr("fill", colorB)
+      .attr("font-size", 14)
+      .attr("font-weight", 600)
       .text(teamB);
 
-    svg
-      .append("text")
-      .attr("x", x(dataA.length - 1) + 10)
-      .attr("y", y(dataA[dataA.length - 1]) + 15)
-      .attr("fill", "#888")
-      .text(teamA);
-  }, [teamA, teamB, gamePart, showSum]);
+    if (seriesA.length > 0) {
+      svg
+        .append("path")
+        .datum(seriesA)
+        .attr("fill", "none")
+        .attr("stroke", colorA)
+        .attr("stroke-width", 3)
+        .attr("stroke-linejoin", "round")
+        .attr("stroke-linecap", "round")
+        .attr("d", lineGen)
+        .attr("opacity", 0)
+        .transition()
+        .duration(700)
+        .attr("opacity", 0.9);
+    }
+
+    if (seriesB.length > 0) {
+      svg
+        .append("path")
+        .datum(seriesB)
+        .attr("fill", "none")
+        .attr("stroke", colorB)
+        .attr("stroke-width", 3)
+        .attr("stroke-linejoin", "round")
+        .attr("stroke-linecap", "round")
+        .attr("d", lineGen)
+        .attr("opacity", 0)
+        .transition()
+        .duration(700)
+        .attr("opacity", 0.9);
+    }
+
+    const tooltip = d3.select("#tooltip");
+    const mapA = new Map(seriesA.map((d) => [d.x, d.y]));
+    const mapB = new Map(seriesB.map((d) => [d.x, d.y]));
+
+    function addPoints(series, color, teamKey) {
+      svg
+        .selectAll(`.point-${teamKey}`)
+        .data(series)
+        .enter()
+        .append("circle")
+        .attr("class", `point-${teamKey}`)
+        .attr("cx", (d) => x(d.x))
+        .attr("cy", (d) => y(d.y))
+        .attr("r", 4)
+        .attr("fill", color)
+        .attr("stroke", "white")
+        .attr("stroke-width", 1.5)
+        .style("cursor", "pointer")
+        .on("mouseenter", function (event, d) {
+          d3.select(this).transition().duration(120).attr("r", 10);
+
+          const label = STAT_LABELS[statistic] || statistic;
+
+          const pointX = x(d.x) - 100;
+          const pointY = y(d.y) - 50;
+
+          const svgRect = svgRef.current.getBoundingClientRect();
+          const screenX = svgRect.left + pointX;
+          const screenY = svgRect.top + pointY;
+
+          const isPercentage =
+            statistic === "field_goals_percentage" ||
+            statistic === "three_pointers_percentage" ||
+            statistic === "free_throws_percentage";
+
+          const formattedValue = isPercentage
+            ? d.y.toFixed(1) + "%"
+            : Math.round(d.y);
+
+          tooltip
+            .style("opacity", 1)
+            .style("left", `${screenX}px`)
+            .style("top", `${screenY}px`)
+            .html(`<div>${label}: ${formattedValue}</div>`);
+        })
+        .on("mouseleave", function () {
+          d3.select(this).transition().duration(120).attr("r", 4);
+          tooltip.style("opacity", 0);
+        });
+    }
+
+    addPoints(seriesA, colorA, "teamA");
+    addPoints(seriesB, colorB, "teamB");
+  }, [
+    teamAStats,
+    teamBStats,
+    teamA,
+    teamB,
+    teamAId,
+    teamBId,
+    statistic,
+    gamePart,
+    numGames,
+    showSum,
+  ]);
 
   return (
     <div className="flex justify-center pt-10 pb-20">
@@ -199,6 +546,7 @@ export default function TeamStatsPage() {
                         key={t.id}
                         onClick={() => {
                           setTeamA(t.full_name);
+                          setTeamAId(t.id);
                           setTeamASearch(t.full_name);
                           setTeamADropdown(false);
                         }}
@@ -242,6 +590,7 @@ export default function TeamStatsPage() {
                         key={t.id}
                         onClick={() => {
                           setTeamB(t.full_name);
+                          setTeamBId(t.id);
                           setTeamBSearch(t.full_name);
                           setTeamBDropdown(false);
                         }}
@@ -256,6 +605,67 @@ export default function TeamStatsPage() {
                       No teams found...
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+
+            <div className="custom-dropdown flex flex-col gap-2">
+              <label className="text-lg font-semibold text-white">
+                Statistic:
+              </label>
+
+              <button
+                onClick={toggleStatisticDropdown}
+                className="
+      w-full text-left px-4 py-2 rounded-lg text-white 
+      bg-white/10 border border-white/20 
+      hover:bg-white/20 transition 
+      flex items-center justify-between
+    "
+              >
+                <span>{STAT_LABELS[statistic]}</span>
+
+                <span
+                  className={`transition-transform ${
+                    openStatisticDropdown ? "rotate-180" : "rotate-0"
+                  }`}
+                >
+                  ▼
+                </span>
+              </button>
+
+              {openStatisticDropdown && (
+                <div
+                  className="
+        w-full mt-2
+        bg-white/10 backdrop-blur-xl rounded-xl 
+        border border-white/20 shadow-xl 
+        overflow-hidden animate-dropdownFade
+      "
+                >
+                  {[
+                    { value: "assists", label: "Assists" },
+                    { value: "turnovers", label: "Turnovers" },
+                    { value: "team_score", label: "Points" },
+                    { value: "field_goals_percentage", label: "Field Goal %" },
+                    { value: "three_pointers_percentage", label: "3PT %" },
+                    { value: "free_throws_percentage", label: "Free Throw %" },
+                    { value: "rebounds_total", label: "Rebounds" },
+                  ].map((opt) => (
+                    <div
+                      key={opt.value}
+                      onClick={() => {
+                        setStatistic(opt.value);
+                        closeStatisticDropdown();
+                      }}
+                      className="
+            px-4 py-2 text-white cursor-pointer
+            hover:bg-white/20 transition capitalize
+          "
+                    >
+                      {opt.label}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -325,73 +735,76 @@ export default function TeamStatsPage() {
               )}
             </div>
 
-            <div className="flex flex-col gap-3 text-white w-64">
-              <h2 className="text-lg font-semibold">Game Part:</h2>
+            {statistic === "team_score" && (
+              <div className="flex flex-col gap-3 text-white w-64">
+                <h2 className="text-lg font-semibold">Game Part:</h2>
 
-              <div className="flex flex-col gap-2 bg-white/5 backdrop-blur-sm border border-white/10 p-3 rounded-xl">
-                {[
-                  { value: "1st", label: "1st Quarter" },
-                  { value: "2nd", label: "2nd Quarter" },
-                  { value: "3rd", label: "3rd Quarter" },
-                  { value: "4th", label: "4th Quarter" },
-                  { value: "game", label: "Full Game" },
-                ].map((opt) => (
-                  <label
-                    key={opt.value}
-                    className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition 
-    ${
-      gamePart === opt.value
-        ? "bg-white/40 font-semibold"
-        : "hover:bg-white/10 font-normal"
-    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="part"
-                      value={opt.value}
-                      checked={gamePart === opt.value}
-                      onChange={() => setGamePart(opt.value)}
-                      className="hidden"
-                    />
+                <div className="flex flex-col gap-2 bg-white/5 backdrop-blur-sm border border-white/10 p-3 rounded-xl">
+                  {[
+                    { value: "1st", label: "1st Quarter" },
+                    { value: "2nd", label: "2nd Quarter" },
+                    { value: "3rd", label: "3rd Quarter" },
+                    { value: "4th", label: "4th Quarter" },
+                    { value: "game", label: "Full Game" },
+                  ].map((opt) => (
+                    <label
+                      key={opt.value}
+                      className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition 
+            ${
+              gamePart === opt.value
+                ? "bg-white/40 font-semibold"
+                : "hover:bg-white/10 font-normal"
+            }`}
+                    >
+                      <input
+                        type="radio"
+                        name="part"
+                        value={opt.value}
+                        checked={gamePart === opt.value}
+                        onChange={() => setGamePart(opt.value)}
+                        className="hidden"
+                      />
 
-                    <span className="text-lg w-5 text-center">
-                      {gamePart === opt.value ? "🏀" : ""}
-                    </span>
+                      <span className="text-lg w-5 text-center">
+                        {gamePart === opt.value ? "🏀" : ""}
+                      </span>
 
-                    <span>{opt.label}</span>
-                  </label>
-                ))}
+                      <span>{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
-
-            <label className="flex items-center gap-3 mt-2 text-white cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={showSum}
-                onChange={() => setShowSum(!showSum)}
-                className="hidden"
-              />
-
-              <div
-                className={`w-14 h-7 flex items-center rounded-full p-1 transition-all
-      ${showSum ? "bg-orange-600" : "bg-white/25"}`}
-              >
-                <div
-                  className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-all
-        ${showSum ? "translate-x-7" : "translate-x-0"}`}
-                ></div>
-              </div>
-
-              <span className="text-lg font-medium">Show sum</span>
-            </label>
+            )}
           </div>
 
-          <svg
-            ref={svgRef}
-            width={900}
-            height={600}
-            className="rounded-xl bg-black/20 backdrop-blur-md border border-white/10 shadow-xl"
-          />
+          <div
+            id="tooltip"
+            style={{
+              position: "fixed",
+              zIndex: 999999,
+              pointerEvents: "none",
+              background: "rgba(255,255,255,0.85)",
+              color: "black",
+              padding: "6px 10px",
+              borderRadius: "6px",
+              opacity: 0,
+              transition: "opacity 0.15s ease",
+            }}
+          ></div>
+
+          {(!teamAId || !teamBId) && (
+            <div className="flex items-center justify-center w-full h-[650px] rounded-xl backdrop-blur-md border border-white/10 shadow-xl text-white text-lg font-semibold">
+              Select both teams in order to see the graph...
+            </div>
+          )}
+
+          {teamAId && teamBId && (
+            <svg
+              ref={svgRef}
+              className="rounded-xl backdrop-blur-md border border-white/10 shadow-xl w-full"
+              height={650}
+            />
+          )}
         </div>
       </div>
     </div>

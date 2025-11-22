@@ -1,6 +1,7 @@
 import os
 import traceback
 from fastapi import FastAPI, HTTPException
+from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 import bcrypt
@@ -456,17 +457,21 @@ def update_user_profile(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-
-@app.get("/teams_statistics")
-def get_teams_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
-    # assists, turnovers, team_score (ovo su poeni), field_goals_percentage, three_pointers_percentage, 
-    # free_throws_percentage, rebounds_total, q1_points, q2_points, q3_points, q4_points
+@app.post("/teams_statistics")
+async def get_teams_stats(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    # assists, turnovers, team score (ovo su poeni), field goals percentage, three pointers percentage, 
+    # free throws percentage, rebounds_total, q1_points, q2_points, q3_points, q4_points
     try:
-        first_team_id = 1610612742
-        second_team_id = 1610612762
+        data = await request.json()
 
-        last_n_games = 20
-        category = "team_score"
+        first_team_id = data.get("teamAId")
+        second_team_id = data.get("teamBId")
+        last_n_games = data.get("numGames")
+        category = data.get("statistic")
+
         # fetch stats for first team
         first_team_stats_response = supabase.table("team_statistics") \
             .select(f"game_date, teamId, {category}", count="exact") \
