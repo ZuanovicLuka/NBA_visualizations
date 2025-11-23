@@ -13,6 +13,12 @@ export default function PlayerStatsPage() {
   const [player2, setPlayer2] = useState("");
   const [player1Image, setPlayer1Image] = useState<string | null>(null);
   const [player2Image, setPlayer2Image] = useState<string | null>(null);
+  const [selectedPlayer1Id, setSelectedPlayer1Id] = useState<number | null>(
+    null
+  );
+  const [selectedPlayer2Id, setSelectedPlayer2Id] = useState<number | null>(
+    null
+  );
 
   const [search1, setSearch1] = useState("");
   const [search2, setSearch2] = useState("");
@@ -33,18 +39,103 @@ export default function PlayerStatsPage() {
 
   const datepickerRef = useRef<any>(null);
 
-  // Mock stats — kasnije API
+  const [player1Stats, setPlayer1Stats] = useState<any>(null);
+  const [player2Stats, setPlayer2Stats] = useState<any>(null);
+
   const metrics = [
-    { key: "games", label: "Number of games", p1: 17, p2: 14 },
-    { key: "points", label: "Points", p1: 28, p2: 23 },
-    { key: "assists", label: "Assists", p1: 6, p2: 4 },
-    { key: "rebounds", label: "Rebounds", p1: 9, p2: 11 },
-    { key: "fg", label: "FG %", p1: 52, p2: 48 },
-    { key: "threept", label: "3PT %", p1: 40, p2: 36 },
-    { key: "ft", label: "FT %", p1: 87, p2: 75 },
+    {
+      key: "games_played",
+      label: "Games played",
+      p1: player1Stats?.games_played ?? 0,
+      p2: player2Stats?.games_played ?? 0,
+    },
+    {
+      key: "average_points",
+      label: "Average points",
+      p1: player1Stats?.average_points ?? 0,
+      p2: player2Stats?.average_points ?? 0,
+    },
+    {
+      key: "average_assists",
+      label: "Average assists",
+      p1: player1Stats?.average_assists ?? 0,
+      p2: player2Stats?.average_assists ?? 0,
+    },
+    {
+      key: "average_rebounds",
+      label: "Average rebounds",
+      p1: player1Stats?.average_rebounds ?? 0,
+      p2: player2Stats?.average_rebounds ?? 0,
+    },
+    {
+      key: "field_goal_percentage",
+      label: "FG %",
+      p1: player1Stats?.field_goal_percentage ?? 0,
+      p2: player2Stats?.field_goal_percentage ?? 0,
+    },
+    {
+      key: "three_point_percentage",
+      label: "3PT %",
+      p1: player1Stats?.three_point_percentage ?? 0,
+      p2: player2Stats?.three_point_percentage ?? 0,
+    },
+    {
+      key: "free_throw_percentage",
+      label: "FT %",
+      p1: player1Stats?.free_throw_percentage ?? 0,
+      p2: player2Stats?.free_throw_percentage ?? 0,
+    },
   ];
 
   const [activeMetrics, setActiveMetrics] = useState(metrics.map((m) => m.key));
+
+  async function fetchPlayerStats(
+    playerId: number,
+    startDate: string,
+    endDate: string
+  ) {
+    const [data, status] = await apiCall("/player_statistics", {
+      method: "POST",
+      body: JSON.stringify({
+        player_id: playerId,
+        start_date: startDate,
+        end_date: endDate,
+      }),
+    });
+
+    if (status !== 200) {
+      console.error("Failed to fetch stats", data);
+      return null;
+    }
+
+    return data.stats;
+  }
+
+  useEffect(() => {
+    if (!selectedPlayer1Id) return;
+    if (!dateRange[0] || !dateRange[1]) return;
+
+    const start = dateRange[0].toISOString().split("T")[0];
+    const end = dateRange[1].toISOString().split("T")[0];
+
+    fetchPlayerStats(selectedPlayer1Id, start, end).then((stats) => {
+      console.log("Player 1 stats:", stats);
+      setPlayer1Stats(stats);
+    });
+  }, [selectedPlayer1Id, dateRange]);
+
+  useEffect(() => {
+    if (!selectedPlayer2Id) return;
+    if (!dateRange[0] || !dateRange[1]) return;
+
+    const start = dateRange[0].toISOString().split("T")[0];
+    const end = dateRange[1].toISOString().split("T")[0];
+
+    fetchPlayerStats(selectedPlayer2Id, start, end).then((stats) => {
+      console.log("Player 2 stats:", stats);
+      setPlayer2Stats(stats);
+    });
+  }, [selectedPlayer2Id, dateRange]);
 
   const toggleMetric = (key: string) => {
     if (activeMetrics.includes(key)) {
@@ -136,6 +227,7 @@ export default function PlayerStatsPage() {
                         setPlayer1(p.name);
                         setPlayer1Image(p.image_url || null);
                         setSearch1(p.name);
+                        setSelectedPlayer1Id(p.player_id);
                         setDropdown1(false);
                       }}
                     >
@@ -176,6 +268,7 @@ export default function PlayerStatsPage() {
                         setPlayer2(p.name);
                         setPlayer2Image(p.image_url || null);
                         setSearch2(p.name);
+                        setSelectedPlayer2Id(p.player_id);
                         setDropdown2(false);
                       }}
                     >
@@ -202,18 +295,28 @@ export default function PlayerStatsPage() {
                 mode: "range",
                 dateFormat: "d.m.Y",
                 minDate: "01.01.2006",
-                locale: {
-                  rangeSeparator: " - ",
-                } as any,
+                maxDate: "31.12.2022",
+                locale: { rangeSeparator: " - " } as any,
+                clickOpens: true,
+                closeOnSelect: false,
+
+                onChange: function (selectedDates) {
+                  if (selectedDates.length === 2) {
+                    setDateRange([selectedDates[0], selectedDates[1]]);
+                  }
+                },
+
+                onClose: function (selectedDates) {
+                  if (selectedDates.length < 2) {
+                    setDateRange([null, null]);
+
+                    if (datepickerRef.current) {
+                      datepickerRef.current.flatpickr.clear();
+                    }
+                  }
+                },
               }}
-              onChange={(dates) => {
-                setDateRange([dates[0] || null, dates[1] || null]);
-              }}
-              className="
-        bg-white/20 border border-white/30 text-white
-        rounded-3xl px-6 py-3 text-center
-        placeholder-white/60 w-full
-      "
+              className="bg-white/20 border border-white/30 text-white rounded-3xl px-6 py-3 text-center placeholder-white/60 w-full"
             />
 
             <Calendar
