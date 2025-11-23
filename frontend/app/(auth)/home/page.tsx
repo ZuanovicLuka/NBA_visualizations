@@ -2,15 +2,18 @@
 
 import Link from "next/link";
 import { BarChart3, LineChart, Flame } from "lucide-react";
+import { FavoriteHighlight } from "@/app/components/FavoriteHighlight";
 
 export default function HomePage() {
   return (
     <div className="flex flex-col items-center justify-center gap-12 text-white min-h-[70vh] px-6">
+      <FavoriteHighlight />
+
       <h1 className="text-4xl font-bold drop-shadow-lg text-center">
         Choose Visualization Type
       </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl">
         <Link
           href="/graphs/team-stats"
           className="
