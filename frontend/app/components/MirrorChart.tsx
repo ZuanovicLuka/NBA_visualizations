@@ -36,7 +36,6 @@ export function MirrorChart({ metrics, activeMetrics, player1, player2 }) {
       .range([20, height - 20])
       .padding(0.6);
 
-    // Zero axis line
     svg
       .append("line")
       .attr("x1", axisX)
@@ -47,11 +46,9 @@ export function MirrorChart({ metrics, activeMetrics, player1, player2 }) {
       .attr("stroke-opacity", 0.3)
       .attr("stroke-width", 2);
 
-    // Draw rows
     visibleMetrics.forEach((m) => {
       const yPos = y(m.key)!;
 
-      // Label centered
       svg
         .append("text")
         .attr("x", axisX)
@@ -62,45 +59,65 @@ export function MirrorChart({ metrics, activeMetrics, player1, player2 }) {
         .attr("font-weight", "600")
         .text(m.label);
 
-      // LEFT BAR
-      svg
-        .append("rect")
-        .attr("x", xLeft(m.p1))
-        .attr("y", yPos)
-        .attr("height", y.bandwidth())
-        .attr("width", axisX - xLeft(m.p1))
-        .attr("fill", "#2755A8");
+      if (m.p1 > 0 || m.key === "games_played") {
+        svg
+          .append("rect")
+          .attr("x", xLeft(m.p1))
+          .attr("y", yPos)
+          .attr("height", y.bandwidth())
+          .attr("width", axisX - xLeft(m.p1))
+          .attr("fill", "#2755A8");
 
-      // LEFT VALUE
-      svg
-        .append("text")
-        .attr("x", xLeft(m.p1) - 8)
-        .attr("y", yPos + y.bandwidth() / 1.6)
-        .attr("text-anchor", "end")
-        .attr("fill", "white")
-        .attr("font-weight", "bold")
-        .attr("font-size", "18px")
-        .text(m.p1);
+        svg
+          .append("text")
+          .attr("x", xLeft(m.p1) - 8)
+          .attr("y", yPos + y.bandwidth() / 1.6)
+          .attr("text-anchor", "end")
+          .attr("fill", "white")
+          .attr("font-weight", "bold")
+          .attr("font-size", "18px")
+          .text(m.p1);
+      } else {
+        svg
+          .append("text")
+          .attr("x", axisX - 20)
+          .attr("y", yPos + y.bandwidth() / 1.6)
+          .attr("text-anchor", "end")
+          .attr("fill", "white")
+          .attr("font-size", "16px")
+          .attr("opacity", 0.7)
+          .text("N/A");
+      }
 
-      // RIGHT BAR
-      svg
-        .append("rect")
-        .attr("x", axisX)
-        .attr("y", yPos)
-        .attr("height", y.bandwidth())
-        .attr("width", xRight(m.p2) - axisX)
-        .attr("fill", "#facc15");
+      if (m.p2 > 0 || m.key === "games_played") {
+        svg
+          .append("rect")
+          .attr("x", axisX)
+          .attr("y", yPos)
+          .attr("height", y.bandwidth())
+          .attr("width", xRight(m.p2) - axisX)
+          .attr("fill", "#facc15");
 
-      // RIGHT VALUE
-      svg
-        .append("text")
-        .attr("x", xRight(m.p2) + 8)
-        .attr("y", yPos + y.bandwidth() / 1.6)
-        .attr("text-anchor", "start")
-        .attr("fill", "white")
-        .attr("font-weight", "bold")
-        .attr("font-size", "18px")
-        .text(m.p2);
+        svg
+          .append("text")
+          .attr("x", xRight(m.p2) + 8)
+          .attr("y", yPos + y.bandwidth() / 1.6)
+          .attr("text-anchor", "start")
+          .attr("fill", "white")
+          .attr("font-weight", "bold")
+          .attr("font-size", "18px")
+          .text(m.p2);
+      } else {
+        svg
+          .append("text")
+          .attr("x", axisX + 20)
+          .attr("y", yPos + y.bandwidth() / 1.6)
+          .attr("text-anchor", "start")
+          .attr("fill", "white")
+          .attr("font-size", "16px")
+          .attr("opacity", 0.7)
+          .text("N/A");
+      }
     });
   }, [metrics, activeMetrics, player1, player2]);
 
