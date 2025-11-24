@@ -482,6 +482,7 @@ async def get_teams_stats(
             .select(f"game_date, teamId, {category}", count="exact") \
             .eq("teamId", first_team_id) \
             .eq("opponent_team_id", second_team_id) \
+            .neq(category, -1) \
             .order("game_date", desc=True) \
             .limit(last_n_games)  \
             .execute()
@@ -495,6 +496,7 @@ async def get_teams_stats(
             .select(f"game_date, teamId, {category}", count="exact") \
             .eq("teamId", second_team_id) \
             .eq("opponent_team_id", first_team_id) \
+            .neq(category, -1) \
             .order("game_date", desc=True) \
             .limit(last_n_games)  \
             .execute()

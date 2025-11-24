@@ -52,6 +52,9 @@ export default function TeamStatsPage() {
   const [teamAStats, setTeamAStats] = useState<any[]>([]);
   const [teamBStats, setTeamBStats] = useState<any[]>([]);
 
+  const missingDataA = teamAStats.length > 0 && teamAStats.length < numGames;
+  const missingDataB = teamBStats.length > 0 && teamBStats.length < numGames;
+
   const getTeamColor = (id: number | null, fallback: string) => {
     const COLORS: Record<number, string> = {
       1610612737: "#E03A3E", // Atlanta Hawks
@@ -269,7 +272,7 @@ export default function TeamStatsPage() {
 
     const x = d3
       .scaleLinear()
-      .domain([1, numGames])
+      .domain([1, teamAStats.length])
       .range([margin.left, width - margin.right]);
 
     const y = d3
@@ -295,7 +298,7 @@ export default function TeamStatsPage() {
 
     const xAxis = d3
       .axisBottom(x)
-      .ticks(numGames)
+      .ticks(teamAStats.length)
       .tickFormat((d: any) => d);
     const yAxis = d3.axisLeft(y).ticks(6);
 
@@ -814,13 +817,22 @@ export default function TeamStatsPage() {
             </div>
           )}
 
-          {teamAId && teamBId && (
-            <svg
-              ref={svgRef}
-              className="rounded-xl backdrop-blur-md border border-white/10 shadow-xl w-full"
-              height={650}
-            />
-          )}
+          <div className="flex-1 flex flex-col items-center">
+            {teamAId && teamBId && (
+              <svg
+                ref={svgRef}
+                className="rounded-xl backdrop-blur-md border border-white/10 shadow-xl w-full"
+                height={650}
+              />
+            )}
+
+            {(missingDataA || missingDataB) && (
+              <div className="mt-4 p-4 bg-white/5 backdrop-blur-sm border border-white/10 text-white rounded-xl text-center w-full">
+                Sorry, scoring data is not available for all of the last{" "}
+                {numGames} games.
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
