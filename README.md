@@ -19,3 +19,7 @@ To run **NbetA**, start both the **backend** and **frontend** as described below
    - backend
       - app
       - **.env**
+2. In the first POWERSHELL terminal, position yourself in the /backend folder:
+  ```bash
+   cd backend
+```
