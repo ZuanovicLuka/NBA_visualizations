@@ -23,3 +23,7 @@ To run **NbetA**, start both the **backend** and **frontend** as described below
   ```bash
    cd backend
 ```
+3. Lastly, run this command to start the backend:
+  ```bash
+   uvicorn app.main:app --reload
+```
