@@ -271,35 +271,43 @@ def get_players(search: str = ""):
 
 @app.get("/player-image")
 def get_player_image(name: str):
-    """Get a player's image URL by full name."""
     try:
         if not name:
             raise HTTPException(status_code=400, detail="Player name is required")
+        
+        cleaned = name.strip()
+        parts = cleaned.split()
 
-        print(f"Searching image for player: '{name}'")
+        if len(parts) == 1:
+            first = parts[0]
+            last = parts[0]
+        else:
+            first = parts[0]
+            last = " ".join(parts[1:])   
 
-        parts = name.strip().split(" ")
-        query = supabase.table("active_players").select("player_id, first_name, last_name")
-
-        if len(parts) == 2:
-            first, last = parts
-            query = query.or_(
+        query = (
+            supabase.table("active_players")
+            .select("player_id, first_name, last_name")
+            .or_(
                 f"first_name.ilike.%{first}%,last_name.ilike.%{last}%"
             )
-        else:
-            query = query.or_(
-                f"first_name.ilike.%{name}%,last_name.ilike.%{name}%"
-            )
+        )
 
         response = query.execute()
         players = response.data or []
 
         if not players:
-            print("No matching player found for:", name)
-            return {"image_url": "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png"}
+            return {
+                "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png",
+                "player_id": None,
+            }
+
+        normalized_target = cleaned.lower().replace(".", "")
+        def normalize(fn, ln):
+            return f"{fn} {ln}".lower().replace(".", "")
 
         player = next(
-            (p for p in players if f"{p['first_name']} {p['last_name']}".strip().lower() == name.lower()),
+            (p for p in players if normalize(p["first_name"], p["last_name"]) == normalized_target),
             players[0]
         )
 
@@ -308,14 +316,12 @@ def get_player_image(name: str):
 
         try:
             image_url = supabase.storage.from_("Player images").get_public_url(image_path)
-            print("Found image for player:", player_id, image_url)
         except Exception:
             image_url = "https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png"
 
         return {"image_url": image_url, "player_id": player_id}
 
     except Exception as e:
-        print("GET PLAYER IMAGE ERROR:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
@@ -472,7 +478,6 @@ async def get_teams_stats(
         last_n_games = data.get("numGames")
         category = data.get("statistic")
 
-        # fetch stats for first team
         first_team_stats_response = supabase.table("team_statistics") \
             .select(f"game_date, teamId, {category}", count="exact") \
             .eq("teamId", first_team_id) \
@@ -487,8 +492,6 @@ async def get_teams_stats(
             .eq("id", first_team_id) \
             .execute()
 
-
-        # stats for second team
         second_team_stats_response = supabase.table("team_statistics") \
             .select(f"game_date, teamId, {category}", count="exact") \
             .eq("teamId", second_team_id) \
@@ -503,7 +506,7 @@ async def get_teams_stats(
             .eq("id", second_team_id) \
             .execute()
 
-        first_team_games = first_team_stats_response.data[::-1]  # reverse list so oldest first
+        first_team_games = first_team_stats_response.data[::-1]
         for i, row in enumerate(first_team_games, start=1):
             row["game_order"] = i
             del row["game_date"]
@@ -533,20 +536,21 @@ async def get_teams_stats(
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
-
-
-@app.get("/player_statistics")
-def get_players_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
+@app.post("/player_statistics")
+async def get_players_stats(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
     try: 
-        first_player_id = 2544
-        second_player_id = 202681
-        start_date = "2024-01-01"
-        end_date = "2024-12-31"
+        data = await request.json()
+
+        first_player_id = data.get("player_id")
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
 
         categories = "points, assists, rebounds_total, field_goals_attempted, field_goals_made, three_pointers_attempted," \
                     "three_pointers_made, free_throws_attempted, free_throws_made"
         
-        # fetch stats for first player
         first_player_stats = (
             supabase.table("player_statistics")
             .select(f"player_id, player_team_name, game_date, {categories}") \
@@ -556,7 +560,6 @@ def get_players_stats(data: dict, credentials: HTTPAuthorizationCredentials = De
             .order("game_date", desc=True) \
             .execute()
         ).data
-
 
         first_player_stats = calculate_player_summary(first_player_stats)
         
@@ -571,13 +574,19 @@ def get_players_stats(data: dict, credentials: HTTPAuthorizationCredentials = De
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/get_clutch_factor")
-def get_clutch_factor_stats(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
+@app.post("/get_clutch_factor")
+async def get_clutch_factor_stats(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
     try:
-        player_id = 2544
+        data = await request.json()
+
+        player_id = data.get("player_id")
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+
         categories = "player_id, points, field_goals_attempted, field_goals_made, game_id, win, home"
-        start_date = "2024-01-01"
-        end_date = "2024-12-31"
 
         player_statistics = (supabase.table("player_statistics") \
             .select(categories) \
@@ -627,12 +636,17 @@ def get_clutch_factor_stats(data: dict, credentials: HTTPAuthorizationCredential
         raise HTTPException(status_code=500, detail=str(e))
     
 
-@app.get("/favourite_team_data")
-def get_favourite_team_data(data: dict, credentials: HTTPAuthorizationCredentials = Depends(security)):
+@app.post("/favourite_team_data")
+async def get_favourite_team_data(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
     try:
-        team_id = 1610612759
+        data = await request.json()
 
-        trivia_categories = "id, points, full_name, city, year_founded, logo_url"
+        team_id = data.get("team_id")
+
+        trivia_categories = "id, full_name, city, year_founded, logo_url"
 
         statistical_categories = "teamId, home, game_date, win, assists, blocks, steals, turnovers, team_score, " \
                                  "opponent_score, field_goals_made, field_goals_attempted, three_pointers_made, " \
@@ -654,6 +668,17 @@ def get_favourite_team_data(data: dict, credentials: HTTPAuthorizationCredential
                            .execute()
                         ).data
         
+        for row in team_form_stats:
+            for key, value in row.items():
+                if isinstance(value, str):
+                    try:
+                        if value.isdigit():
+                            row[key] = int(value)
+                        else:
+                            row[key] = float(value)
+                    except:
+                        pass
+
         team_stats_data = calculate_team_stats(team_form_stats)
         form_string = "".join(["W" if row["win"] == 1 else "L" for row in team_form_stats])
         form_string = form_string[::-1]
@@ -671,55 +696,65 @@ def get_favourite_team_data(data: dict, credentials: HTTPAuthorizationCredential
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
-
-def get_player_trivia_data(data: dict, credential:  HTTPAuthorizationCredentials = Depends(security)):
+@app.post("/favourite_player_data")
+async def get_player_trivia_data(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
     try:
-        player_id = 2544
+        data = await request.json()
+        player_id = data.get("player_id")
 
-        trivia_categories = "first_name, last_name, country, birthdate, height, position, " \
-                            "jersey, team_id, draft_team_id, draft_number, draft_year"
+        trivia_categories = (
+            "first_name, last_name, country, birthdate, height, position, "
+            "jersey, team_id, draft_team_id, draft_number, draft_year"
+        )
 
-        player_trivia_data = (supabase.table("active_players") \
-                            .select(trivia_categories) \
-                            .eq("player_id", player_id) \
-                            .execute()
-                        ).data
+        player_trivia_data = (
+            supabase.table("active_players")
+            .select(trivia_categories)
+            .eq("player_id", player_id)
+            .execute()
+        ).data
+
+        if not player_trivia_data:
+            raise HTTPException(status_code=404, detail="Player not found")
 
         player = player_trivia_data[0]
         team_id = player.get("team_id")
         draft_team_id = player.get("draft_team_id")
 
+        team_logo_url = None
         team_data = (
-                supabase.table("teams") \
-                .select("logo_url") \
-                .eq("id", team_id) \
-                .maybe_single() \
-                .execute()
-            )
-        team_logo_url = team_data.data["logo_url"] if team_data.data else None
+            supabase.table("teams")
+            .select("logo_url")
+            .eq("id", team_id)
+            .maybe_single()
+            .execute()
+        )
 
-        if draft_team_id != -1:
-            draft_team_logo_url = None
-        else:
+        if team_data and team_data.data:
+            team_logo_url = team_data.data.get("logo_url")
+
+        draft_team_logo_url = None
+        if draft_team_id and draft_team_id != -1:
             draft_team_data = (
-                supabase.table("teams") \
-                .select("logo_url") \
-                .eq("id", draft_team_id) \
-                .maybe_single() \
+                supabase.table("teams")
+                .select("logo_url")
+                .eq("id", draft_team_id)
+                .maybe_single()
                 .execute()
             )
-        
-        draft_team_logo_url = draft_team_data.data["logo_url"] if draft_team_data.data else None
+            if draft_team_data and draft_team_data.data:
+                draft_team_logo_url = draft_team_data.data.get("logo_url")
 
-        response = {
+        return {
             "player_id": player_id,
             "trivia": player_trivia_data,
             "team_logo_url": team_logo_url,
-            "draft_team_logo_url": draft_team_logo_url
+            "draft_team_logo_url": draft_team_logo_url,
         }
 
-        return response
-    
     except Exception as e:
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))

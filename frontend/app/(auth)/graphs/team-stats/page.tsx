@@ -545,12 +545,20 @@ export default function TeamStatsPage() {
                       <div
                         key={t.id}
                         onClick={() => {
+                          if (t.id === teamBId) return;
                           setTeamA(t.full_name);
                           setTeamAId(t.id);
                           setTeamASearch(t.full_name);
                           setTeamADropdown(false);
                         }}
-                        className="p-2 cursor-pointer hover:bg-yellow-200 flex items-center gap-2"
+                        className={`
+                            p-2 flex items-center gap-2 rounded-md
+                            ${
+                              t.id === teamBId
+                                ? "bg-gray-300 cursor-not-allowed opacity-50"
+                                : "cursor-pointer hover:bg-yellow-200"
+                            }
+                          `}
                       >
                         <img src={t.logo_url} className="w-10 h-10" />
                         <span className="font-semibold">{t.full_name}</span>
@@ -589,12 +597,20 @@ export default function TeamStatsPage() {
                       <div
                         key={t.id}
                         onClick={() => {
+                          if (t.id === teamAId) return;
                           setTeamB(t.full_name);
                           setTeamBId(t.id);
                           setTeamBSearch(t.full_name);
                           setTeamBDropdown(false);
                         }}
-                        className="p-2 cursor-pointer hover:bg-yellow-200 flex items-center gap-2"
+                        className={`
+                          p-2 flex items-center gap-2 rounded-md
+                          ${
+                            t.id === teamAId
+                              ? "bg-gray-300 cursor-not-allowed opacity-50"
+                              : "cursor-pointer hover:bg-yellow-200"
+                          }
+                        `}
                       >
                         <img src={t.logo_url} className="w-10 h-10" />
                         <span className="font-semibold">{t.full_name}</span>

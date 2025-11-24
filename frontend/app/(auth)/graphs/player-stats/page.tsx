@@ -222,14 +222,22 @@ export default function PlayerStatsPage() {
                   results1.map((p: any) => (
                     <div
                       key={p.player_id}
-                      className="p-2 hover:bg-yellow-200 cursor-pointer flex items-center gap-2"
                       onClick={() => {
+                        if (p.player_id === selectedPlayer2Id) return;
                         setPlayer1(p.name);
                         setPlayer1Image(p.image_url || null);
                         setSearch1(p.name);
                         setSelectedPlayer1Id(p.player_id);
                         setDropdown1(false);
                       }}
+                      className={`
+                        p-2 flex items-center gap-2 rounded-md
+                        ${
+                          p.player_id === selectedPlayer2Id
+                            ? "bg-gray-300 cursor-not-allowed opacity-50"
+                            : "cursor-pointer hover:bg-yellow-200"
+                        }
+                      `}
                     >
                       <img
                         src={p.image_url}
@@ -263,14 +271,22 @@ export default function PlayerStatsPage() {
                   results2.map((p: any) => (
                     <div
                       key={p.player_id}
-                      className="p-2 hover:bg-yellow-200 cursor-pointer flex items-center gap-2"
                       onClick={() => {
+                        if (p.player_id === selectedPlayer1Id) return;
                         setPlayer2(p.name);
                         setPlayer2Image(p.image_url || null);
                         setSearch2(p.name);
                         setSelectedPlayer2Id(p.player_id);
                         setDropdown2(false);
                       }}
+                      className={`
+                        p-2 flex items-center gap-2 rounded-md
+                        ${
+                          p.player_id === selectedPlayer1Id
+                            ? "bg-gray-300 cursor-not-allowed opacity-50"
+                            : "cursor-pointer hover:bg-yellow-200"
+                        }
+                      `}
                     >
                       <img
                         src={p.image_url}
