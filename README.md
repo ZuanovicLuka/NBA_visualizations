@@ -33,6 +33,7 @@ To run **NbetA**, start both the **backend** and **frontend** as described below
      ```bash
    cd frontend
 ```
+
 2. Run this command to install all the packages:
      ```bash
    npm install --legacy-peer-deps
