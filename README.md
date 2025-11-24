@@ -10,3 +10,12 @@ NbetA is an interactive web app that brings NBA data to life through dynamic cha
 ## Links to the presentation and video demonstration
 - Final presentation: https://www.dropbox.com/scl/fi/km2h96nsojitr5dix38ck/TP2-final_presentation-130275-130288.pptx?rlkey=771ki9cz5b3lvp0sj2iqfsysn&st=5q9n22qr&dl=0
 - Video demonstration: https://www.dropbox.com/scl/fi/5ewxptrvmxdh60wrzw4mr/TP2-video_demo-130275-130288.mp4?rlkey=60eqw3nkgoq99pp5gikttl1yd&st=fh2dk0r6&dl=0
+
+## Running the application
+To run **NbetA**, start both the **backend** and **frontend** as described below.
+
+### Backend:
+1. Create a .env file with the content provided in the env.txt inside the TP2-NbetA-130275+130288.zip on moodle. Position of the **.env** should look like this:
+   - backend
+      - app
+      - **.env**
