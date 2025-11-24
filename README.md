@@ -32,13 +32,12 @@ To run **NbetA**, start both the **backend** and **frontend** as described below
 1. In the second POWERSHELL terminal, position yourself in the /frontend folder:
      ```bash
    cd frontend
-```
-
+   ```
 2. Run this command to install all the packages:
      ```bash
    npm install --legacy-peer-deps
-```
+   ```
 3. Lastly, run this command to start the frontend:
      ```bash
    npm run dev
-```
+   ```
