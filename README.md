@@ -5,3 +5,8 @@ NBA Visualizations is an interactive web app that brings NBA data to life throug
 Link to first data: https://www.kaggle.com/datasets/wyattowalsh/basketball
 Link to second data: https://www.kaggle.com/datasets/eoinamoore/historical-nba-data-and-player-box-scores/data
 Link to some team logos: https://www.kaggle.com/datasets/ncmoliver/nba-logos-img-dataset
+
+
+## Links to the presentation and video demonstration
+Final presentation: https://www.dropbox.com/scl/fi/km2h96nsojitr5dix38ck/TP2-final_presentation-130275-130288.pptx?rlkey=771ki9cz5b3lvp0sj2iqfsysn&st=5q9n22qr&dl=0
+Video demonstration: https://www.dropbox.com/scl/fi/5ewxptrvmxdh60wrzw4mr/TP2-video_demo-130275-130288.mp4?rlkey=60eqw3nkgoq99pp5gikttl1yd&st=fh2dk0r6&dl=0
