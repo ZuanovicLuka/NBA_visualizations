@@ -71,16 +71,17 @@ class UserLogin(BaseModel):
 def read_root():
     return {"message": "Backend connected to Supabase successfully!"}
 
+
 @app.post("/register")
 def register_user(user: UserCreate):
     try:
         print(f"Checking if user '{user.username}' or email '{user.email}' exists...")
 
         existing = (
-            supabase.table("users")
-            .select("*")
-            .or_(f"username.eq.{user.username},email.eq.{user.email}")
-            .execute()
+            supabase.table("users") \
+            .select("*") \
+            .or_(f"username.eq.{user.username}, email.eq.{user.email}") \
+            .execute() \
         )
 
         if existing.data and len(existing.data) > 0:
@@ -125,15 +126,16 @@ def register_user(user: UserCreate):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
+
 @app.post("/login")
 def login(user: UserLogin):
     try:
         print(f"Searching for user '{user.username}'...")
 
         response = (
-            supabase.table("users")
-            .select("*")
-            .eq("username", user.username)
+            supabase.table("users") \
+            .select("*") \
+            .eq("username", user.username) \
             .execute()
         )
 
